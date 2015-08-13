@@ -156,18 +156,26 @@ body
           font-size: 20px
 #product
   background: url("../images/pattern.jpg")
-  padding: 100px 0px 100px 0px
+  padding: 100px 0px 50px 0px
   h3
     text-align: center
     font-size: 30px
     font-weight: bold
     color: gray
   .slider
-    margin-top: 50px
-    padding: 0px 30px 0px 30px
+    margin-top: 100px
+    padding: 0px 50px 0px 50px
+    display: flex 
+    flex-flow: row nowrap
+    align-items: center 
+    .inner 
+      height: 364px
+      display: flex
+      flex-flow: row nowrap
+      align-items: center
 
     .slick-next
-      right: Rem(0)
+      right: Rem(-20)
       height: initial
       z-index: 1
       width: auto
@@ -179,7 +187,7 @@ body
         content: url('../images/next.png')
 
     .slick-prev
-      left: Rem(0)
+      left: Rem(-20)
       height: initial
       width: auto
       z-index: 1
@@ -189,6 +197,57 @@ body
         opacity: 0.5
       &:before
         content: url('../images/prev.png')
+  .line
+    height: 2px 
+    width: 200px
+    background: $light-gray
+    margin: 100px auto 0 auto
 
+#review
+  background: url("../images/pattern.jpg")
+  padding: 50px 0px 100px 0px
+  h3
+    text-align: center
+    font-size: 30px
+    font-weight: bold
+    color: gray
+  .slider-review
+    margin-top: 50px
+    padding: 0px 50px 0px 50px
+    color: gray
+    .slick-next
+      right: Rem(-20)
+      height: initial
+      z-index: 1
+      width: auto
+      transition: opacity 0.3s ease
+      opacity: 0.35
+      &:hover
+        opacity: 0.5
+      &:before
+        content: url('../images/next.png')
+    .slick-prev
+      left: Rem(-20)
+      height: initial
+      width: auto
+      z-index: 1
+      transition: opacity 0.3s ease
+      opacity: 0.35
+      &:hover
+        opacity: 0.5
+      &:before
+        content: url('../images/prev.png')
+    .flex-inner
+      display: flex
+      flex-flow: row nowrap
+      justify-content: space-around
+      align-items: center
+      .image 
+        img 
+          height: 200px
+          width: 420px
+        span 
+          font-weight: bold
+          
       
   

@@ -5,7 +5,8 @@ $(document).ready ->
     centerPadding:'5px',
     autoplay: true
     )
-  options = offset: 600
+  $(".slider-review").slick()
+  options = offset: 650
   header = new Headhesive(".header",options)
   $('a[href*=#]').bind('click',  (e) ->
     e.preventDefault()

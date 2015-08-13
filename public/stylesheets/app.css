@@ -1881,17 +1881,25 @@ body {
 
 #product {
   background: url("../images/pattern.jpg");
-  padding: 100px 0px 100px 0px; }
+  padding: 100px 0px 50px 0px; }
   #product h3 {
     text-align: center;
     font-size: 30px;
     font-weight: bold;
     color: gray; }
   #product .slider {
-    margin-top: 50px;
-    padding: 0px 30px 0px 30px; }
+    margin-top: 100px;
+    padding: 0px 50px 0px 50px;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center; }
+    #product .slider .inner {
+      height: 364px;
+      display: flex;
+      flex-flow: row nowrap;
+      align-items: center; }
     #product .slider .slick-next {
-      right: 0rem;
+      right: -1.25rem;
       height: initial;
       z-index: 1;
       width: auto;
@@ -1902,7 +1910,7 @@ body {
       #product .slider .slick-next:before {
         content: url("../images/next.png"); }
     #product .slider .slick-prev {
-      left: 0rem;
+      left: -1.25rem;
       height: initial;
       width: auto;
       z-index: 1;
@@ -1912,6 +1920,56 @@ body {
         opacity: 0.5; }
       #product .slider .slick-prev:before {
         content: url("../images/prev.png"); }
+  #product .line {
+    height: 2px;
+    width: 200px;
+    background: #9F9F9F;
+    margin: 100px auto 0 auto; }
+
+#review {
+  background: url("../images/pattern.jpg");
+  padding: 50px 0px 100px 0px; }
+  #review h3 {
+    text-align: center;
+    font-size: 30px;
+    font-weight: bold;
+    color: gray; }
+  #review .slider-review {
+    margin-top: 50px;
+    padding: 0px 50px 0px 50px;
+    color: gray; }
+    #review .slider-review .slick-next {
+      right: -1.25rem;
+      height: initial;
+      z-index: 1;
+      width: auto;
+      transition: opacity 0.3s ease;
+      opacity: 0.35; }
+      #review .slider-review .slick-next:hover {
+        opacity: 0.5; }
+      #review .slider-review .slick-next:before {
+        content: url("../images/next.png"); }
+    #review .slider-review .slick-prev {
+      left: -1.25rem;
+      height: initial;
+      width: auto;
+      z-index: 1;
+      transition: opacity 0.3s ease;
+      opacity: 0.35; }
+      #review .slider-review .slick-prev:hover {
+        opacity: 0.5; }
+      #review .slider-review .slick-prev:before {
+        content: url("../images/prev.png"); }
+    #review .slider-review .flex-inner {
+      display: flex;
+      flex-flow: row nowrap;
+      justify-content: space-around;
+      align-items: center; }
+      #review .slider-review .flex-inner .image img {
+        height: 200px;
+        width: 420px; }
+      #review .slider-review .flex-inner .image span {
+        font-weight: bold; }
 
 
 /*# sourceMappingURL=app.css.map*/
