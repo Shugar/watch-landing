@@ -1,1 +1,92 @@
 @import "index"
+body
+  background: url("../images/fon1.jpg") no-repeat center 
+  background-attachment: fixed
+  background-size: cover
+  min-width: 960px
+  width: 100%
+.container
+  width: 960px
+  color: $white
+#home
+  display: flex 
+  flex-direction: column
+  flex-wrap: nowrap
+  justify-content: space-between
+  height: 100vh
+  width: 100%
+  min-width: 960px
+  min-height: 600px
+  background: rgba(0,0,0,0.5)
+  .header
+    width: 100%
+    border-bottom: 2px solid $gray
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5)
+    padding: 10px 0px 10px 0px
+    .container
+      display: flex
+      flex-direction: row
+      justify-content: space-around
+      align-items: center
+      .logo
+        font-weight: bold
+        font-size: 30px
+        img 
+          height: 50px
+          margin-right: 20px
+      ul 
+        flex: 1 0 auto
+        text-align: right
+        list-style: none
+        li 
+          display: inline-block
+          border: none
+          &:not(:last-of-type)
+            margin-right: 20px
+          a 
+            color: $white
+            font-size: 13px
+            border: none
+            &:hover
+              color: $dark-blue
+  .main-content
+    display: flex
+    flex: 1 0 auto
+    .container
+      flex: 1 0 auto
+      display: flex 
+      flex-direction: column
+      flex-wrap: nowrap 
+      justify-content: center
+      align-items: center   
+      .name-inner
+        display: flex 
+        flex-flow: column nowrap
+        align-items: center
+        justify-content: space-around
+        height: 200px
+        .name 
+          font-weight: bold
+          font-size: 50px
+        .line
+          width: 200px
+          height: 2px
+          background: white 
+        .activities
+          font-size: 30px
+      .button 
+        margin-top: 100px
+        width: 250px
+        border: 2px solid white
+        padding: 10px
+        background: rgba(0,0,0,0.3)
+        transition-property: all 
+        transition-duration: 0.5s
+        cursor: pointer
+        border-radius: 5px
+        &:hover
+          border: 2px solid $dark-blue  
+          background: rgba(0,0,0,0.5)
+
+
+

@@ -9,4 +9,26 @@ head
     require('initialize');
 
 body
-  
+  section#home
+    header.header
+      .container
+        .logo
+          img(src="images/logo.png")
+          |НАЗВАНИЕ
+        ul
+          li 
+            a(href="#home") ГЛАВНАЯ
+          li 
+            a(href="#about") О НАС
+          li
+            a(href="#review") ОТЗЫВЫ
+          li 
+            a(href="#buy") ЗАКАЗАТЬ
+    .main-content
+      .container
+        .name-inner
+          .name НАЗВАНИЕ
+          .line
+          .activities КАЧЕСТВЕННЫЕ КОПИИ ШВЕЙЦАРСКИХ ЧАСОВ
+        .button ЗАКАЗАТЬ
+
