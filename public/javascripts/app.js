@@ -92,7 +92,7 @@
 })();
 require.register("initialize", function(exports, require, module) {
 $(document).ready(function() {
-  var header, options;
+  var clock, header, options;
   $(".slider").slick({
     centerMode: true,
     slidesToShow: 3,
@@ -104,6 +104,9 @@ $(document).ready(function() {
     offset: 650
   };
   header = new Headhesive(".header", options);
+  clock = $(".flip").FlipClock();
+  clock.setCountdown(true);
+  clock.setTime(19000);
   return $('a[href*=#]').bind('click', function(e) {
     var target;
     e.preventDefault();
