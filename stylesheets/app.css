@@ -1889,10 +1889,7 @@ body {
     color: gray; }
   #product .slider {
     margin-top: 100px;
-    padding: 0px 50px 0px 50px;
-    display: flex;
-    flex-flow: row nowrap;
-    align-items: center; }
+    padding: 0px 50px 0px 50px; }
     #product .slider .inner {
       height: 364px;
       display: flex;
