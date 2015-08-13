@@ -2402,7 +2402,8 @@ body {
       #review .slider-review .flex-inner .image span {
         font-weight: bold; }
       #review .slider-review .flex-inner .image .name {
-        margin-top: 10px; }
+        margin-top: 10px;
+        margin-left: 5px; }
       #review .slider-review .flex-inner .txt {
         margin-left: 10px; }
 
