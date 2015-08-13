@@ -1890,9 +1890,6 @@ body {
   #product .slider {
     margin-top: 50px;
     padding: 0px 30px 0px 30px; }
-    #product .slider img {
-      display: inline-block;
-      vertical-align: middle; }
     #product .slider .slick-next {
       right: 0rem;
       height: initial;

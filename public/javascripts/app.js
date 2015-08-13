@@ -102,9 +102,36 @@ $(document).ready(function() {
   options = {
     offset: 600
   };
-  return header = new Headhesive(".header", options);
+  header = new Headhesive(".header", options);
+  return $('a[href*=#]').bind('click', function(e) {
+    var target;
+    e.preventDefault();
+    target = $(this).attr("href");
+    $('html,body').stop().animate({
+      scrollTop: $(target).offset().top
+    }, 700, function() {
+      return location.hash = target;
+    });
+    return false;
+  });
 });
 });
 
-;
+;require.register("main", function(exports, require, module) {
+$(document).ready(function() {
+ $('a[href*=#]').bind('click', function(e) {
+ e.preventDefault();
+ 
+ var target = $(this).attr("href");
+ 
+ $('html, body').stop().animate({ scrollTop: $(target).offset().top}, 500, function() {
+ location.hash = target;
+ });
+ 
+ return false;
+ });
+});
+});
+
+
 //# sourceMappingURL=app.js.map
