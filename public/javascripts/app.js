@@ -91,7 +91,19 @@
   globals.require.brunch = true;
 })();
 require.register("initialize", function(exports, require, module) {
-
+$(document).ready(function() {
+  var header, options;
+  $(".slider").slick({
+    centerMode: true,
+    slidesToShow: 3,
+    centerPadding: '5px',
+    autoplay: true
+  });
+  options = {
+    offset: 600
+  };
+  return header = new Headhesive(".header", options);
+});
 });
 
 ;
