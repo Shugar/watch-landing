@@ -145,17 +145,16 @@ body
               span Влад 
               | г. Ростов-на-Дону
   .fivth
+    .fivth-title
+        |ОСТАВТЕ ЗАЯВКУ
+        |И НАШ МЕНЕДЖЕР
+        |СВЯЖЕТСЯ С ВАМИ!
     .container
       form(method="post")
-        h3
-          |ОСТАВТЕ ЗАЯВКУ
-          br
-          |И НАШ МЕНЕДЖЕР
-          br
-          |СВЯЖЕТСЯ С ВАМИ!
         input(type="text" name="name" placeholder="Введите имя")
         input(type="text" name="numb" placeholder="Введите номер телефона")
-        input(type="submit" name="send" value="ЗАКАЗАТЬ")
+        .button
+          |ОСТАВИТЬ ЗАЯВКУ
       .image
         img(src="/images/watch1.png")
         .price
