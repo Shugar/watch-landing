@@ -10,118 +10,73 @@
   </script>
 </head>
 <body>
-  <section id="home">
-    <header class="header">
+  <div class="first">
+    <div class="background"></div>
+    <div class="navbar">
       <div class="container">
-        <div class="logo"><img src="images/logo.png">НАЗВАНИЕ</div>
-        <ul>
-          <li> <a href="#home">ГЛАВНАЯ</a></li>
-          <li> <a href="#about">О НАС</a></li>
-          <li> <a href="#product">ПРОДУКЦИЯ</a></li>
-          <li><a href="#review">ОТЗЫВЫ</a></li>
-          <li> <a href="#buy">ЗАКАЗАТЬ</a></li>
-        </ul>
+        <div class="navbar-logo"><img src="images/logo.svg"></div>
+        <div class="navbar-list">
+          <div class="navbar-list-item"><a href="#">главная</a></div>
+          <div class="navbar-list-item"><a href="#">акции</a></div>
+          <div class="navbar-list-item"><a href="#">о брэнде</a></div>
+          <div class="navbar-list-item"><a href="#">отзывы</a></div>
+          <div class="navbar-list-item"><a href="#">контакты </a></div>
+        </div>
       </div>
-    </header>
-    <div class="main-content">
+    </div>
+    <div class="headers">
       <div class="container">
-        <div class="name-inner">
-          <div class="name">НАЗВАНИЕ</div>
-          <div class="line"></div>
-          <div class="activities">КАЧЕСТВЕННЫЕ КОПИИ ШВЕЙЦАРСКИХ ЧАСОВ</div>
-        </div>
-        <div class="button">ЗАКАЗАТЬ</div>
+        <div class="headers-title">ЭЛИТНЫЕ ЧАСЫ ULYSSE NARDIN</div>
+        <div class="headers-sub">Качественные копии швейцарских часов</div>
+        <div class="headers-button">заказать сейчас</div>
       </div>
     </div>
-  </section>
-  <section id="about">
+    <div class="scrolldown"><a href="#"><img src="images/down.svg"></a></div>
+  </div>
+  <div class="second">
     <div class="container">
-      <h3>ПОЧЕМУ ВЫГОДНО КУПИТЬ У НАС?</h3>
-      <div class="flex-inner">
-        <div class="flex-item">
-          <div class="image"><img src="images/mech.png"></div>
-          <div class="txt">Механизмы для наших часов<br>производятся на специализированных<br>фабриках</div>
+      <div class="second-title">
+        АКЦИЯ!
+        ЗАКАЖИТЕ ПРЯМО СЕЙЧАС
+        И ПОЛУЧИТЕ СКИДКУ!
+      </div>
+      <div class="second-item">
+        <div class="second-form">
+          <form method="post">
+            <input type="text" name="name" placeholder="имя">
+            <input type="text" name="numb" placeholder="телефон">
+            <div class="button">заказать сейчас</div>
+          </form>
         </div>
-        <div class="flex-item">
-          <div class="image"><img src="images/paper.png"></div>
-          <div class="txt">Качество и надежность механизмов <br>подтверждено сертификатом <br>производителя</div>
-        </div>
-        <div class="flex-item">
-          <div class="image"><img src="images/car.png"></div>
-          <div class="txt">Быстрая доставка во все регионы <br>России. От 3 до 12 дней, в <br>зависимости от региона доставки</div>
-        </div>
-        <div class="flex-item">
-          <div class="image"><img src="images/roubl.png"></div>
-          <div class="txt">Работаем без предоплат. Оплата<br>только при получении товара.</div>
+        <div class="flipcont">ДО КОНЦА АКЦИИ ОСТАЛОСЬ:
+          <div class="flip"></div>
         </div>
       </div>
     </div>
-  </section>
-  <section id="product">
+  </div>
+  <div class="third">
     <div class="container">
-      <h3>НАША ПРОДУКЦИЯ</h3>
-      <div class="slider">
-        <div class="inner"><img src="images/watch1.png"></div>
-        <div class="inner"><img src="images/watch2.png"></div>
-        <div class="inner"><img src="images/watch3.png"></div>
-        <div class="inner"><img src="images/watch4.png"></div>
-      </div>
-      <div class="line"></div>
-    </div>
-  </section>
-  <section id="review">
-    <div class="container">
-      <h3>ОТЗЫВЫ</h3>
-      <div class="slider-review">
-        <div class="man1 flex-inner">
-          <div class="image"> <img src="images/man1.png">
-            <div class="name"> <span>Кристина</span><br>г.Москва</div>
-          </div>
-          <div class="txt">
-            Спасибо работникам магазина за 
-            грамотную консультацию. Так доходчиво 
-            все объяснили. Мы ж только думаем, что 
-            все знаем... Еще раз спасибо! Очень 
-            довольна своими новыми часами!
-          </div>
+      <div class="third-title">ПОЧЕМУ ВЫГОДНО КУПИТЬ И ИМЕННО У НАС ?</div>
+      <div class="third-items">
+        <div class="item"> <img src="images/hands.svg">
+          <div class="item-text">Работаем без предоплаты. Оплачиваете товар только при получении в ваши руки.</div>
         </div>
-        <div class="man2 flex-inner">
-          <div class="image"> <img src="images/man2.png">
-            <div class="name"> <span>Кристина</span><br>г.Москва</div>
-          </div>
-          <div class="txt">
-            Спасибо работникам магазина за 
-            грамотную консультацию. Так доходчиво 
-            все объяснили. Мы ж только думаем, что 
-            все знаем... Еще раз спасибо! Очень 
-            довольна своими новыми часами!
-          </div>
+        <div class="item"> <img src="images/clock.svg">
+          <div class="item-text">Быстро обработаем и подтвердим ваш заказ.</div>
         </div>
-        <div class="man3 flex-inner">
-          <div class="image"> <img src="images/man3.png">
-            <div class="name"> <span>Кристина</span><br>г.Москва</div>
-          </div>
-          <div class="txt">
-            Спасибо работникам магазина за 
-            грамотную консультацию. Так доходчиво 
-            все объяснили. Мы ж только думаем, что 
-            все знаем... Еще раз спасибо! Очень 
-            довольна своими новыми часами!
-          </div>
+        <div class="item"> <img src="images/box.svg">
+          <div class="item-text">Надежная упаковка,способная уберечь ваш заказ от повреждений</div>
         </div>
-        <div class="man4 flex-inner">
-          <div class="image"> <img src="images/man4.png">
-            <div class="name"> <span>Кристина</span><br>г.Москва</div>
-          </div>
-          <div class="txt">
-            Спасибо работникам магазина за 
-            грамотную консультацию. Так доходчиво 
-            все объяснили. Мы ж только думаем, что 
-            все знаем... Еще раз спасибо! Очень 
-            довольна своими новыми часами!
-          </div>
+        <div class="item"> <img src="images/telegram.svg">
+          <div class="item-text">Оперативно доставим товар в любой регион России.</div>
+        </div>
+        <div class="item"> <img src="images/lovemom.svg">
+          <div class="item-text">Товар есть в наличии всегда! Никаких долгих ожиданий</div>
+        </div>
+        <div class="item"> <img src="images/last.svg">
+          <div class="item-text">Качество и надежность механизмов подтверждено сертификатом производителя</div>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 </body>
