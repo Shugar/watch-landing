@@ -7,7 +7,6 @@ $(document).ready ->
     )
   $(".slider-review").slick()
   options = offset: 650
-  header = new Headhesive(".header",options)
   clock = $(".flip").FlipClock()
   clock.setCountdown(true)
   clock.setTime(19000)

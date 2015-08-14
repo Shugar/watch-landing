@@ -1,6 +1,9 @@
 doctype html
 head
+  meta(name="viewport" content="width=device-width")
+
   link(rel="stylesheet" href="stylesheets/app.css")
+
   script(src="javascripts/vendor.js")
   script(src="javascripts/app.js")
 
@@ -8,151 +11,86 @@ head
     require('initialize');
 
 body
-  section#home
-    header.header
+  
+  .first
+    .background
+    .navbar
       .container
-        .logo
-          img(src="images/logo.png")
-        ul
-          li 
-            a(href="#home") ГЛАВНАЯ
-          li 
-            a(href="#about") О НАС
-          li
-            a(href="#review") ОТЗЫВЫ
-          li 
-            a(href="#buy") ЗАКАЗАТЬ
-    .main-content
+        .navbar-logo
+          img(src="images/logo.svg")
+
+        .navbar-list
+          .navbar-list-item
+            a(href="#") главная
+
+          .navbar-list-item
+            a(href="#") акции
+
+          .navbar-list-item
+            a(href="#") о брэнде
+
+          .navbar-list-item
+            a(href="#") отзывы
+
+          .navbar-list-item
+            a(href="#") контакты 
+    .headers
       .container
-        .name-inner
-          .name ULYSSE NARDIN
-          .line
-          .activities КАЧЕСТВЕННЫЕ КОПИИ ШВЕЙЦАРСКИХ ЧАСОВ
-        .button ЗАКАЗАТЬ
-  section#sale
+        .headers-title
+          |ЭЛИТНЫЕ ЧАСЫ ULYSSE NARDIN
+        .headers-sub
+          |Качественные копии швейцарских часов
+        .headers-button
+          |заказать сейчас
+
+    .scrolldown
+      a(href="#")
+        img(src="images/down.svg")
+
+  .second
     .container
-      form(method="post")
-        h3
-          |АКЦИЯ!
-          br
-          |ЗАКАЖИТЕ ПРЯМО СЕЙЧАС
-          br
-          |И ПОЛУЧИТЕ СКИДКУ!
-        input(type="text" name="name" placeholder="Введите имя")
-        input(type="text" name="numb" placeholder="Введите номер телефона")
-        input(type="submit" name="send" value="ЗАКАЗАТЬ")
-      .flipcont
-        h3
+      .second-title
+        |АКЦИЯ!
+        |ЗАКАЖИТЕ ПРЯМО СЕЙЧАС
+        |И ПОЛУЧИТЕ СКИДКУ!
+      .second-item
+        .second-form
+          form(method="post")
+            input(type="text" name="name" placeholder="имя")
+            input(type="text" name="numb" placeholder="телефон")
+            .button
+              |заказать сейчас
+        .flipcont
           |ДО КОНЦА АКЦИИ ОСТАЛОСЬ:
-        .flip
-  section#about
+          .flip
+
+
+  .third
     .container
-      h3 ПОЧЕМУ ВЫГОДНО КУПИТЬ У НАС?
-      .flex-inner
-        .flex-item
-          .image
-            img(src="images/mech.png")
-          .txt
-            |Механизмы для наших часов
-            br
-            |производятся на специализированных
-            br 
-            |фабриках
-        .flex-item
-          .image
-            img(src="images/paper.png")
-          .txt
-            |Качество и надежность механизмов 
-            br
-            |подтверждено сертификатом 
-            br
-            |производителя
-        .flex-item
-          .image
-            img(src="images/car.png")
-          .txt
-            |Быстрая доставка во все регионы 
-            br
-            |России. От 3 до 12 дней, в 
-            br
-            |зависимости от региона доставки
-        .flex-item
-          .image
-            img(src="images/roubl.png")
-          .txt
-            |Работаем без предоплат. Оплата
-            br
-            |только при получении товара.
-  section#review
-    .container
-      h3 ОТЗЫВЫ
-      .slider-review
-        .man1.flex-inner
-          img(src="images/man1.png")
-          .txt
-            |Спасибо работникам магазина за 
-            |грамотную консультацию. Так доходчиво 
-            |все объяснили. Мы ж только думаем, что 
-            |все знаем... Еще раз спасибо! Очень 
-            |довольна своими новыми часами!
-            .name 
-              span Кристина 
-              | г. Ростов-на-Дону
-        .man2.flex-inner 
-          img(src="images/man2.png")
-          .txt
-            |Спасибо работникам магазина за 
-            |грамотную консультацию. Так доходчиво 
-            |все объяснили. Мы ж только думаем, что 
-            |все знаем... Еще раз спасибо! Очень 
-            |довольна своими новыми часами!
-            .name 
-              span Виктор 
-              | г. Ростов-на-Дону
-        .man3.flex-inner
-          img(src="images/man3.png")           
-          .txt
-            |Спасибо работникам магазина за 
-            |грамотную консультацию. Так доходчиво 
-            |все объяснили. Мы ж только думаем, что 
-            |все знаем... Еще раз спасибо! Очень 
-            |довольна своими новыми часами!
-            .name 
-              span Екатерина 
-              | г. Ростов-на-Дону
-        .man4.flex-inner 
-          img(src="images/man4.png") 
-          .txt
-            |Спасибо работникам магазина за 
-            |грамотную консультацию. Так доходчиво 
-            |все объяснили. Мы ж только думаем, что 
-            |все знаем... Еще раз спасибо! Очень 
-            |довольна своими новыми часами!
-            .name 
-              span Влад 
-              | г. Ростов-на-Дону
-  section#buy
-    .container
-      form(method="post")
-        h3
-          |ОСТАВТЕ ЗАЯВКУ
-          br
-          |И НАШ МЕНЕДЖЕР
-          br
-          |СВЯЖЕТСЯ С ВАМИ!
-        input(type="text" name="name" placeholder="Введите имя")
-        input(type="text" name="numb" placeholder="Введите номер телефона")
-        input(type="submit" name="send" value="ЗАКАЗАТЬ")
-      .image
-        img(src="/images/watch1.png")
-        .price
-          span
-            |7490 Р
-          br
-          p
-            |4290 Р
-
-
-
-
-
+      .third-title
+        |ПОЧЕМУ ВЫГОДНО КУПИТЬ И ИМЕННО У НАС ?
+      .third-items
+        .item 
+          img(src="images/hands.svg")
+          .item-text
+            |Работаем без предоплаты. Оплачиваете товар только при получении в ваши руки.
+        .item 
+          img(src="images/clock.svg")
+          .item-text
+            |Быстро обработаем и подтвердим ваш заказ.
+        .item 
+          img(src="images/box.svg")
+          .item-text
+            |Надежная упаковка,способная уберечь ваш заказ от повреждений
+        .item 
+          img(src="images/telegram.svg")
+          .item-text
+            |Оперативно доставим товар в любой регион России.
+        .item 
+          img(src="images/lovemom.svg")
+          .item-text
+            |Товар есть в наличии всегда! Никаких долгих ожиданий
+        .item 
+          img(src="images/last.svg")
+          .item-text
+            |Качество и надежность механизмов подтверждено сертификатом производителя

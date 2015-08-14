@@ -45,7 +45,7 @@ $asset-pipeline: true
 // @include font-face('opens', '/fonts/zeA7vVJJ', 300, normal)
 // @include font-face('opens', '/fonts/zPrUrCP2', 600, normal)
 
-$opens: "Open Sans", sans-serif
+$opens: "Helvetica Neue", sans-serif
 $myriad: 'Myriad Pro', sans-serif
 
 
@@ -59,18 +59,15 @@ $body: $opens
 
 .container
   width: 100%
-  max-width: 1024px
+  width: 1024px
   min-height: 100%
   margin: 0 auto
   position: relative
   padding-left: 30px
   padding-right: 30px
   text-align: center
-  +clearfix
-  +tablet
-    padding: 0 20px
-  +mobile
-    padding: 0 10px
+  // +clearfix
+  
 
 
 
@@ -83,12 +80,7 @@ $body: $opens
   &.centered
     justify-content: center
 
-  &.stack
-    +mobile
-      flex-direction: column
-    &.centered
-      +mobile
-        align-items: center
+
 
 
 
@@ -103,12 +95,6 @@ html,body
   font-size: #{$base-font-size}px
   line-height: #{$base-font-size*1.5}px
   color: $black
-
-  +tablet
-    font-size: #{$tablet-font-size}px
-
-  +mobile
-    font-size: #{$mobile-font-size}px
 
 
 
@@ -278,3 +264,27 @@ p
   color: inherit
 
 
+
+@keyframes scrolldown
+  0%
+    transform: translateY(0)
+
+  50%
+    transform: translateY(10px)
+
+  100%
+    transform: translateY(0)
+
+
+%btn
+  color: #fff
+  +regular(18, 18)
+  padding: Rem(20) Rem(34)
+  background: #ea6b3e
+  max-width: Rem(332)
+  border-radius: 5px
+  text-transform: uppercase
+  cursor: pointer
+  transition: background 0.3s ease
+  &:hover
+    background: #f84e0c
