@@ -1,6 +1,5 @@
 doctype html
 head
-  meta(name="viewport" content="width=device-width")
   link(rel="stylesheet" href="stylesheets/app.css")
   script(src="javascripts/vendor.js")
   script(src="javascripts/app.js")
@@ -14,7 +13,6 @@ body
       .container
         .logo
           img(src="images/logo.png")
-          |НАЗВАНИЕ
         ul
           li 
             a(href="#home") ГЛАВНАЯ
@@ -27,7 +25,7 @@ body
     .main-content
       .container
         .name-inner
-          .name НАЗВАНИЕ
+          .name ULYSSE NARDIN
           .line
           .activities КАЧЕСТВЕННЫЕ КОПИИ ШВЕЙЦАРСКИХ ЧАСОВ
         .button ЗАКАЗАТЬ
@@ -90,57 +88,70 @@ body
       h3 ОТЗЫВЫ
       .slider-review
         .man1.flex-inner
-          .image 
-            img(src="images/man1.png")
-            .name 
-              span Кристина
-              br
-              |г. Ростов-на-Дону
+          img(src="images/man1.png")
           .txt
             |Спасибо работникам магазина за 
             |грамотную консультацию. Так доходчиво 
             |все объяснили. Мы ж только думаем, что 
             |все знаем... Еще раз спасибо! Очень 
             |довольна своими новыми часами!
-        .man2.flex-inner
-          .image 
-            img(src="images/man2.png")
             .name 
-              span Виктор
-              br
-              |г. Ростов-на-Дону
+              span Кристина 
+              | г. Ростов-на-Дону
+        .man2.flex-inner 
+          img(src="images/man2.png")
           .txt
             |Спасибо работникам магазина за 
             |грамотную консультацию. Так доходчиво 
             |все объяснили. Мы ж только думаем, что 
             |все знаем... Еще раз спасибо! Очень 
             |довольна своими новыми часами!
+            .name 
+              span Виктор 
+              | г. Ростов-на-Дону
         .man3.flex-inner
-          .image 
-            img(src="images/man3.png")
-            .name 
-              span Екатерина
-              br
-              |г. Ростов-на-Дону
+          img(src="images/man3.png")           
           .txt
             |Спасибо работникам магазина за 
             |грамотную консультацию. Так доходчиво 
             |все объяснили. Мы ж только думаем, что 
             |все знаем... Еще раз спасибо! Очень 
             |довольна своими новыми часами!
-        .man4.flex-inner
-          .image 
-            img(src="images/man4.png")
             .name 
-              span Влад
-              br
-              |г. Ростов-на-Дону
+              span Екатерина 
+              | г. Ростов-на-Дону
+        .man4.flex-inner 
+          img(src="images/man4.png") 
           .txt
             |Спасибо работникам магазина за 
             |грамотную консультацию. Так доходчиво 
             |все объяснили. Мы ж только думаем, что 
             |все знаем... Еще раз спасибо! Очень 
             |довольна своими новыми часами!
+            .name 
+              span Влад 
+              | г. Ростов-на-Дону
+  section#buy
+    .container
+      form(method="post")
+        h3
+          |ОСТАВТЕ ЗАЯВКУ
+          br
+          |И НАШ МЕНЕДЖЕР
+          br
+          |СВЯЖЕТСЯ С ВАМИ!
+        input(type="text" name="name" placeholder="Введите имя")
+        input(type="text" name="numb" placeholder="Введите номер телефона")
+        input(type="submit" name="send" value="ЗАКАЗАТЬ")
+      .image
+        img(src="/images/watch1.png")
+        .price
+          span
+            |7490 Р
+          br
+          p
+            |4290 Р
+
 
 
 
