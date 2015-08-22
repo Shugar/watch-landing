@@ -5,359 +5,311 @@
 @import 'tools/_mixins'
 @import 'tools/_normalize'
 @import 'tools/_settings'
-
-
-
-////valera
-.second
-  background: rgba(0,0,0,0.8)
-  padding: 50px 0 60px 0
-
-  &-title
-    +regular(25, 39)
-    color: #fff
-    font-weight: 500
-    letter-spacing: 2px
-
-  &-item
-    margin-top: 50px
-    @extend .row
-    align-items: center
-
-  &-form
-    @extend .column
-    align-items: center
-
-    form 
-      @extend .column
-      align-items: center
-      input 
-        margin-top: 15px
-        padding: 10px 15px
-        outline: none
-        +regular(20, 25)
-        border-radius: 5px
-        width: 300px
-
-      .button
-        @extend %btn
-        margin-top: 20px
-
-  .flipcont
-    +regular(20, 29)
-    font-weight: 200
-    color: #fff
-    @extend .column
-
-  .flip
-    &-clock-label
-      display: none
-
-    &-clock-dot
-      background: $light-gray
-
-.third
-  padding: 50px 0
-  &-title
-    +regular(35,39)
-    span 
-      color: red
-  &-main
-    @extend .column
-    text-align: left
-    span 
-      margin-top: 20px
-      &:first-of-type
-        margin-top: 50px
-
-
-
-
-.fivth
-  background: url("../images/pattern.jpg")
-  padding: 50px 0px
-  text-align: center
-  font-size: 30px
-  font-weight: bold
-  color: gray
-  .slider-review
-    margin-top: 50px
-    padding: 0px 50px
-    color: gray
-    font-size: 18px
-    font-weight: normal
-    .slick-next
-      right: Rem(-10)
-      height: initial
-      z-index: 1
-      width: auto
-      transition: opacity 0.3s ease
-      opacity: 0.35
-      &:hover
-        opacity: 0.5
-      &:before
-        content: url('../images/next.png')
-    .slick-prev
-      left: Rem(-10)
-      height: initial
-      width: auto
-      z-index: 1
-      transition: opacity 0.3s ease
-      opacity: 0.35
-      &:hover
-        opacity: 0.5
-      &:before
-        content: url('../images/prev.png')
-    .flex-inner
-      display: flex
-      flex-flow: row nowrap
-      align-items: center
-      padding: 0px 50px
-      min-height: 252px
-      img 
-        height: 180px
-        flex: 1 0 auto
-      .txt 
-        margin-left: 30px
-        text-align: left
-        span 
-          font-weight: bold
-        .name
-          margin-top: 10px
-
-          
-.sixth
-  background: rgba(0,0,0,0.8)
-  padding: 50px 0px
-  &-title
-    +regular(25, 39)
-    color: #fff
-    font-weight: bold
-    font-size: 30px
-    text-align: center
-
-  .container
-    margin-top: 50px
-    display: flex 
-    flex-flow: row nowrap
-    justify-content: space-around
-    align-items: center
-    form 
-      @extend .column
-      align-items: center
-      input 
-        margin-top: 15px
-        padding: 10px 15px
-        outline: none
-        +regular(20, 25)
-        border-radius: 5px
-        width: 300px
-
-      .button
-        @extend %btn
-        margin-top: 20px
-    .image 
-      display: flex
-      flex-flow: row nowrap
-      align-items: center
-      img 
-        height: 400px
-      .price
-        font-size: 30px
-        color: red
-        p 
-          margin-left: 20px
-          text-decoration: underline
-        span 
-          text-decoration: line-through
-          color: white
-
-//end valera
-
-
+$yellow: #ffc500
 body
+  background: url('../images/pattern.png')
   min-width: 1024px
-.first
-  background: url('../images/marinebg2.jpg') no-repeat center center
+.container
+  @extend .container 
+  color: white
+.head
+  background: url('../images/fon1.jpg') no-repeat 50% 20%
   background-size: cover
-  min-height: Rem(600)
-  height: 100vh
-  position: relative
-  min-height: 600px
-  @extend .column
-  justify-content: space-between
-  align-items: center
-  .background
-    position: absolute
-    top: 0
-    left: 0
-    height: 100%
-    width: 100%
-    background: #000
-    opacity: 0.5
-
-    
-  .navbar
-    z-index: 1
-    padding-top: Rem(50)
+  .opacity
+    background: rgba(0,0,0,0.5)
+    padding-top: 20px
+  header
+    .container
+      @extend .row
+      align-items: center
+      .txt
+        flex: 1 0 auto
+        text-align: center
+        opacity: 0.6
+        font-size: 20px
+      .phone
+        font-size: 25px
+        font-weight: bold
+        line-height: 30px
+        text-align: right
+        letter-spacing: 2px
+        .popup-show
+          font-size: 18px
+          text-decoration: underline
+          cursor: pointer
+          letter-spacing: 1px
+          line-height: 25px
+  .main
+    margin-top: 50px
     .container
       @extend .row
       justify-content: space-between
-      align-items: center
+      .flex-inner
+        @extend .row
+        .flex-item
+          align-self: space-around
+          width: 50%
+          font-size: 20px
+          @extend .column
+          justify-content: center
+          align-items: flex-start
+          text-align: left
+          .title
+            font-size: 45px
+          .txt
+            font-weight: 500
+            span:first-of-type
+              text-decoration: line-through
+            span:last-of-type
+              color: $yellow
+              font-size: 25px
+          .button
+            border-radius: 5px 
+            border: 2px solid $yellow
+            padding: 10px 20px
+            margin-top: 15px
+            cursor: pointer
+            transition: all 0.5s ease
+            &:hover
+              background: $yellow
+              color: black
 
-    &-logo
-      img
-        height: Rem(60)
 
-    &-list
-      &-item
-        display: inline-block
-        margin: 5px 8px
-        a
-          +regular(14,19)
-          color: #fff
-          text-transform: uppercase
-          font-weight: 300
-          letter-spacing: 0.5px
-          transition: border-bottom 0.3s ease
-          padding: 6px 10px
-          border-bottom: 2px transparent solid
-          &:hover
-            border-bottom: 2px #fff solid
-
-         
-  .headers
-    z-index: 1
-    color: #fff
-    &-title
-      font-size: Rem(40)
-      font-weight: 500
-      text-transform: uppercase
-      letter-spacing: 2px
-
-    &-sub
-      font-size: Rem(22)
-
-    &-button 
-      margin: 0 auto
-      color: #fff
-      +regular(18, 18)
-      padding: Rem(20) Rem(34)
-      background: #ea6b3e
-      max-width: Rem(332)
-      border-radius: 5px
-      text-transform: uppercase
-      margin-top: Rem(35)
-      cursor: pointer
-      transition: background 0.3s ease
-      &:hover
-        background: #f84e0c
+        .image 
+          width: 50%
+          img 
+            position: relative
+            top: 20px
           
-
-          
-  .scrolldown
-    padding-bottom: Rem(50)
-    z-index: 1
-    position: relative
-    img
-      animation: scrolldown 3s infinite linear
-
-
-// .second
-//   .container
-//     padding-top: Rem(50)
-//     padding-bottom: Rem(50)
-//     @extend .row
-//     justify-content: space-between
-
-//     .timer
-//       @extend .row
-//       justify-content: space-between
-
-//       .price
-//         text-align: left
-//         margin-left: 20px
-//         align-self: center
-//         &-old
-//           +regular(40,45)
-//           text-decoration: line-through
-//           font-weight: 500
-//         &-new
-//           +regular(45,45)
-//           color: red
-//           font-weight: 500
-
-//     .form
-//       @extend .column
-
-//       &-title
-//         +regular(40,50)
-//         font-weight: 500
-//         text-transform: uppercase
-
-//       &-sub
-//         +regular(19,35)
-//         span
-//           color: red
-
-//       form
-//         @extend .column
-//         align-items: center
-
-//         input
-//           border: 3px #232323 solid
-//           outline: none
-//           border-radius: 5px
-//           +regular(19,35)
-//           padding: 16px 20px
-//           margin-top: 20px
-//           background: #3a3a3a
-//           width: 100%
-//           color: #fff
-//           font-weight: 100
-//           letter-spacing: 1px
-
-//         .button
-//           color: #fff
-//           +regular(18, 18)
-//           padding: Rem(20) Rem(34)
-//           background: #ea6b3e
-//           border-radius: 5px
-//           text-transform: uppercase
-//           margin-top: Rem(20)
-//           cursor: pointer
-//           transition: background 0.3s ease
-//           &:hover
-//             background: #f84e0c
-          
-
-
-.fourth
-  background: #5B5C59
-  color: #fff
+      .navbar
+        @extend .row
+        height: 100%
+        margin-top: 13%
+        .inner
+          @extend .column
+          justify-content: center
+        .circle
+          position: relative
+          min-width: 20px
+          border: 1px solid transparent
+          min-height: 20px
+          border-radius: 10px
+          opacity: 0.5
+          margin-top: 5px
+          transition: all 0.5s ease
+          &:after 
+            content: ""
+            position: absolute
+            width: 10px
+            height: 10px
+            left: 50%
+            top: 50%
+            transform: translate(-50%,-50%)
+            background: white
+            border-radius: 5px
+            cursor: pointer
+        .active
+          border: 1px solid white
+          opacity: 1
+.our-advantages
+  padding: 50px 0
   .container
-    padding: Rem(50) 30px
-
-
-  &-title
-    +regular(39, 59)
-
-  &-items
-    padding-top: 25px 
+    @extend .column
+    color: black
+    .title
+      align-self: center
+      font-size: 45px
+      width: 90%
+    .flex-inner
+      margin-top: 50px
+      @extend .row
+      justify-content: space-between
+      .flex-item
+        width: 34%
+        @extend .row
+        justify-content: flex-start
+        align-items: flex-start
+        .image
+          align-self: center
+          img
+            min-width: 50px
+        .text 
+          margin-left: 15px
+          width: 80%
+          text-align: left
+          @extend .column
+          .title
+            align-self: flex-start
+            font-size: 18px
+            text-align: left
+            font-weight: bold
+          .txt 
+            font-weight: 200
+.video-review
+  padding: 50px 0px
+  .container
     @extend .row
-    justify-content: space-between
-    flex-flow: row wrap
-    .item
-      flex: 1 0 30%
-      @extend .column 
+    min-height: 250px
+    .video 
+      min-width: 50%
+    .text 
+      margin-left: 20px
+      color: black
+      text-align: left
+      @extend .column
+      align-items: flex-start
+      .title
+        font-weight: bold
+        font-size: 40px
+.hight-quality
+  padding: 50px 0px
+  .container
+    color: black
+    @extend .column
+    align-items: center
+    .title
+      font-size: 45px
+    .text 
+      margin-top: 20px
+      width: 52%
+      span 
+        color: $yellow
+.image-block
+  padding: 50px 0px
+  @extend .row
+  flex-wrap: wrap
+  .flex-item
+    position: relative
+    width: 12.5%
+    .opacity
+      background: rgba(0,0,0,0.5)
+      position: absolute
+      width: 100%
+      height: 100%
+      cursor: pointer
+      transition: all 0.5s ease
+      &:hover
+        background: transparent    
+    img 
+      min-width: 100%
+
+.why
+  padding: 50px 0
+  .container
+    color: black
+    @extend .column
+    .title
+      font-size: 45px
+      align-self: center
+    .flex-inner
+      margin-top: 50px
+      @extend .row
+      justify-content: space-between
+      .flex-item
+        width: 30%
+        @extend .column
+        .name
+          line-height: 35px
+          font-size: 30px
+          letter-spacing: 1px
+        .image
+          align-self: center
+          padding: 10% 20%
+          width: 75%
+          border-image: -webkit-gradient(linear, left top, left bottom,from(#666), to(transparent), color-stop(0.4, #666), color-stop(0.65, transparent)) 1 1 1 1 repeat
+        &:nth-of-type(2)
+          .image
+            border-image: -webkit-gradient(linear, left top, left bottom,from($yellow), to(transparent), color-stop(0.4, $yellow), color-stop(0.65, transparent)) 1 1 1 1 repeat
+        .txt 
+          align-self: center
+          width: 69%
+          letter-spacing: 1px
+          margin-top: 15px
+.about-watch
+  background: url('../images/fon2.png') no-repeat center center
+  background-size: cover
+  .opacity
+    padding: 20px 0
+    background: rgba(0,0,0,0.3)
+    .container
+      @extend .row
       align-items: center
-      padding: 50px 0 
+      .slider
+        width: 70%
+        .slick-next, .slick-prev
+          display: none !important
+        .flex-inner
+          @extend .row
+          width: 100%
+        .image
+          @extend .column
+          align-items: center
+          justify-content: center
+          img 
+            max-height: 270px
+        .charact
+          @extend .column
+          align-items: flex-start
+          .title
+            font-weight: bold
+          .text 
+            @extend .column
+            align-items: flex-start
+            span 
+              font-weight: bold
+            .yellow
+              color: $yellow
+            .string
+              margin-top: 5px
+      form 
+        background: rgba(0,0,0,0.4)
+        padding: 15px
+        flex: 1 0 auto
+        border-radius: 10px
+        @extend .column
+        .price
+          padding: 10px 0
+          border: 1px solid $yellow
+          span 
+            text-decoration: line-through
+            font-size: 12px
+        .title
+          font-size: 20px
+          span 
+            font-size: 16px
+        .timer
+          align-self: center
+          border: 1px solid $yellow
+          height: 80px
+          width: 80%
+        .inputs
+          align-self: center
+          width: 80%
+          margin-top: 10px
+          @extend .column
+          align-items: flex-start
+          input
+            width: 100%
+            border: 1px solid white
+            background: transparent
+            height: 50px
+            color: white
+            padding-left: 10px
+            &[type="submit"]
+              background: $yellow
+              font-weight: bold
+        .sec 
+          align-self: center
+          text-align: left
+          font-size: 12px
+          margin-top: 5px
 
-      img 
-        height: 50px
+      
+        
 
-      &-text
-        max-width: 80%
-        margin-top: 25px
-        +regular(15,25)
-        font-weight: 200
+          
+          
+
+      
+
+
