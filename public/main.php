@@ -1,6 +1,3 @@
 <?php
-mail("once182@mail.ru","Тема письма","Сообщение");
-echo $_post['name'];
-echo $_post['numb'];
-echo $_post['email'];
+mail("once182@mail.ru","Тема письма","Имя: $_post[name], Телефон: $_post[numb], Email: $_email[email]");
 ?>
