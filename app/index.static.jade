@@ -5,6 +5,7 @@ head
   link(rel="stylesheet" href="stylesheets/app.css")
   script(src="javascripts/vendor.js")
   script(src="javascripts/app.js")
+  script(src="javascripts/pharse.js")
 
   script.
     require('initialize');
@@ -314,7 +315,7 @@ body
                   span
                     |Толщина циферблата: 
                   |14 мм   
-        form.form(method="post" name="shipForm" action="main.php")
+        form.form(method="post" name="shipForm")
           .price
             .txt 
               |КВАРЦЕВЫЕ - 2290р
@@ -344,7 +345,7 @@ body
             label(for="email") Ваш Email:
             input#email(type="text" placeholder="yourmail@example.com" name="email")
           .button.inputs
-            input(type="submit" value="Получить скидку" name="send")
+            input.but(type="submit" value="Получить скидку" name="send")
           .sec
             |Ваши контактные данные в безопасности*
 
