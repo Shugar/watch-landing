@@ -1,6 +1,7 @@
 $(document).ready ->
   Parse.initialize('WD4SCqCV1MsggPivlA2FvNuwHym2lIWxNhpAmQxu','bgN3ACqo9x6mmfPdtaKUoSvBVw5PFSeMucjiNx8H')
-
+  $('.popup').hide()
+  $('.popup2').hide()
 
 
 

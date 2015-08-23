@@ -13,7 +13,7 @@ body
 .container
   @extend .container 
   color: white
-  font-family: 'dinnreg'
+  font-family: 'dinnbold'
 .head
   background: url('../images/fon1.jpg') no-repeat 50% 20%
   background-size: cover
@@ -24,16 +24,16 @@ body
     .container
       @extend .row
       align-items: center
+      font-weight: 
       .txt
         flex: 1 0 auto
         text-align: center
         opacity: 0.6
         font-size: 20px
-        font-family: 'dinnlight'
       .phone
         font-size: 25px
-        line-height: 30px
         font-weight: bold
+        line-height: 30px
         text-align: right
         letter-spacing: 2px
         .popup-show
@@ -59,7 +59,6 @@ body
           text-align: left
           .title
             font-size: 45px
-            font-family: 'dinnbold'
           .txt
             font-weight: 500
             span:first-of-type
@@ -97,7 +96,6 @@ body
       margin-top: 50px
       @extend .row
       justify-content: space-between
-      font-family: 'dinnultra'
       .flex-item
         width: 34%
         @extend .row
@@ -116,7 +114,7 @@ body
             align-self: flex-start
             font-size: 18px
             text-align: left
-            font-family: 'dinnreg'
+            font-weight: bold
           .txt 
             font-weight: 200
 .video-review
@@ -133,12 +131,11 @@ body
       margin-left: 20px
       color: black
       text-align: left
-      font-family: 'dinnlight'
       @extend .column
       align-items: flex-start
       .title
+        font-weight: bold
         font-size: 40px
-        font-family: 'dinnreg'
 .hight-quality
   padding: 50px 0px
   .container
@@ -150,7 +147,6 @@ body
     .text 
       margin-top: 20px
       width: 52%
-      font-family: 'dinnlight'
       span 
         color: $yellow
 .image-block
@@ -217,7 +213,6 @@ body
           width: 69%
           letter-spacing: 1px
           margin-top: 15px
-          font-family: 'dinnultra'
 .about-watch
   background: url('../images/fon2.png') no-repeat center center
   background-size: cover
@@ -298,29 +293,25 @@ body
           font-size: 20px
           span 
             font-size: 16px
-            font-family: 'dinnlight'
         .timer
           align-self: center
           border: 1px solid $yellow
           height: 80px
           width: 80%
-          .countdown-row
+          .countdown_row
             @extend .row
             justify-content: space-around
             align-items: center
             min-width: 100%
             min-height: 100%
-            .countdown-section
-              @extend .column
+            .countdown_section
               font-size: 15px 
-              .countdown-amount
+              .countdown_amount
                 font-size: 35px !important
         .inputs
           align-self: center
           width: 80%
           margin-top: 10px
-          label
-            font-family: 'dinnlight'
           @extend .column
           align-items: flex-start
           input
@@ -338,7 +329,6 @@ body
           text-align: left
           font-size: 12px
           margin-top: 5px
-          font-family: 'dinnulight'
 .process
   padding: 50px 0
   .container
@@ -358,13 +348,13 @@ body
           position: relative
           align-self: center
           width: 100%
+          font-weight: bold
           font-size: 100px
           color: $yellow
           span
             box-shadow: 2px 0px 2px black
-            padding: 20px 40px 10px 40px
+            padding: 10px 40px
             border-radius: 50%
-            font-family: 'dinnreg'
           .str 
             position: absolute
             right: -8%
@@ -372,13 +362,11 @@ body
         .txt 
           margin-top: 25px
           font-size: 14px
-          font-family: 'dinnultra'
     .foot
       align-self: center
       font-size: 13px
       color: gray
       margin-top: 30px
-      font-family: 'dinnulight'
 .reviews
   background: #eee
   padding: 30px 0
@@ -426,7 +414,6 @@ body
           width: 60%
           font-size: 20px
           text-align: left
-          font-family: 'dinnultra'
         .dots-after
           align-self: flex-end
           margin-bottom: 20px
