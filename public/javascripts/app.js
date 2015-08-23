@@ -92,6 +92,8 @@
 })();
 require.register("initialize", function(exports, require, module) {
 $(document).ready(function() {
+  var clock;
+  Parse.initialize('WD4SCqCV1MsggPivlA2FvNuwHym2lIWxNhpAmQxu', 'bgN3ACqo9x6mmfPdtaKUoSvBVw5PFSeMucjiNx8H');
   $(".popup-show").click(function() {
     return $(".popup").show();
   });
@@ -99,8 +101,30 @@ $(document).ready(function() {
     $('.circle').removeClass('active');
     return $(this).addClass('active');
   });
-  return $('.slider').slick({
+  $('.slider').slick({
     autoplay: true
+  });
+  clock = $('.timer').FlipClock();
+  clock.setTime(15000);
+  clock.setCountdown(true);
+  return $('.button').click(function() {
+    var a, b, c;
+    a = $('#name').val();
+    b = $('#numb').val();
+    c = $('#email').val();
+    return Parse.Cloud.run('sendmail', {
+      target: 'once182@mail.ru',
+      originator: 'clock-landing@mail.ru',
+      subject: 'Заявка на получение скидкидки',
+      text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
+    }, {
+      success: function(success) {
+        return console.log(success);
+      },
+      error: function(error) {
+        return console.log(error);
+      }
+    });
   });
 });
 });
