@@ -1,22 +1,37 @@
 $(document).ready ->
   Parse.initialize('WD4SCqCV1MsggPivlA2FvNuwHym2lIWxNhpAmQxu','bgN3ACqo9x6mmfPdtaKUoSvBVw5PFSeMucjiNx8H')
-  $('.popup').hide()
-  $('.popup2').hide()
+
+
+
+
   $('.popup-close').click ->
     $('.popup').hide()
     $('.popup2').hide()
+
+
   $(".popup-show").click ->
     $(".popup").show()
+
+
   $('.navbar').find('.circle').click ->
     $('.circle').removeClass('active')
     $(this).addClass('active')
+
+
   $('.slider').slick(
     autoplay: true)
+
+
   $('.slider-review').slick(
     autoplay: true)
-  $('.timer').countdown(until: '+4h 26m 25s')
+
+  
   header = new Headhesive('.footer',offset:500)
+
+
   $(".image").fancybox()
+
+
   $('a[href*=#]').bind('click',  (e) ->
     e.preventDefault()
     target = $(this).attr("href")
@@ -26,6 +41,8 @@ $(document).ready ->
       )
     false
     )
+
+
   $('.send').click -> 
     a = $('#name').val()
     b = $('#numb').val()
@@ -40,6 +57,8 @@ $(document).ready ->
       error: (error) ->
         return console.log(error)
     $('.popup2').show()
+
+
   $('.send2').click -> 
     a = $('#name2').val()
     b = $('#numb2').val()
@@ -56,6 +75,5 @@ $(document).ready ->
     $('.popup2').show()
 
       
-
-
+  $('.timer').countdown({until: '+4h 26m 25s'})
 

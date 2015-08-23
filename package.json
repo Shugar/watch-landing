@@ -29,7 +29,6 @@
   },
   "dependencies": {
     "autoprefixer-brunch": "^1.8.5",
-    "sass-brunch": "^1.8.3",
-    "sendgrid": "^1.9.2"
+    "sass-brunch": "^1.8.3"
   }
 }
