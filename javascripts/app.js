@@ -92,21 +92,32 @@
 })();
 require.register("initialize", function(exports, require, module) {
 $(document).ready(function() {
-  var clock, options;
-  $(".slider").slick({
-    centerMode: true,
-    slidesToShow: 3,
-    centerPadding: '5px',
+  var header;
+  Parse.initialize('WD4SCqCV1MsggPivlA2FvNuwHym2lIWxNhpAmQxu', 'bgN3ACqo9x6mmfPdtaKUoSvBVw5PFSeMucjiNx8H');
+  $('.popup').hide();
+  $('.popup2').hide();
+  $('.popup-close').click(function() {
+    $('.popup').hide();
+    return $('.popup2').hide();
+  });
+  $(".popup-show").click(function() {
+    return $(".popup").show();
+  });
+  $('.navbar').find('.circle').click(function() {
+    $('.circle').removeClass('active');
+    return $(this).addClass('active');
+  });
+  $('.slider').slick({
     autoplay: true
   });
-  $(".slider-review").slick();
-  options = {
-    offset: 650
-  };
-  clock = $(".flip").FlipClock();
-  clock.setCountdown(true);
-  clock.setTime(19000);
-  return $('a[href*=#]').bind('click', function(e) {
+  $('.slider-review').slick({
+    autoplay: true
+  });
+  header = new Headhesive('.footer', {
+    offset: 500
+  });
+  $(".image").fancybox();
+  $('a[href*=#]').bind('click', function(e) {
     var target;
     e.preventDefault();
     target = $(this).attr("href");
@@ -116,6 +127,49 @@ $(document).ready(function() {
       return location.hash = target;
     });
     return false;
+  });
+  $('.send').click(function() {
+    var a, b, c;
+    a = $('#name').val();
+    b = $('#numb').val();
+    c = $('#email').val();
+    Parse.Cloud.run('sendmail', {
+      target: 'once182@mail.ru',
+      originator: 'clock-landing@mail.ru',
+      subject: 'Заявка на получение скидки',
+      text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
+    }, {
+      success: function(success) {
+        return console.log(success);
+      },
+      error: function(error) {
+        return console.log(error);
+      }
+    });
+    return $('.popup2').show();
+  });
+  $('.send2').click(function() {
+    var a, b, c;
+    a = $('#name2').val();
+    b = $('#numb2').val();
+    c = $('#email2').val();
+    Parse.Cloud.run('sendmail', {
+      target: 'once182@mail.ru',
+      originator: 'clock-landing@mail.ru',
+      subject: 'Заявка на получение скидки',
+      text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
+    }, {
+      success: function(success) {
+        return console.log(success);
+      },
+      error: function(error) {
+        return console.log(error);
+      }
+    });
+    return $('.popup2').show();
+  });
+  return $('.timer').countdown({
+    until: '+4h 26m 25s'
   });
 });
 });

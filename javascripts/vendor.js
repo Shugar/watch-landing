@@ -9301,2760 +9301,13390 @@ return jQuery;
 
 }));
 
-/*
-	Base.js, version 1.1a
-	Copyright 2006-2010, Dean Edwards
-	License: http://www.opensource.org/licenses/mit-license.php
-*/
-
-var Base = function() {
-	// dummy
-};
-
-Base.extend = function(_instance, _static) { // subclass
-	
-	"use strict";
-	
-	var extend = Base.prototype.extend;
-	
-	// build the prototype
-	Base._prototyping = true;
-	
-	var proto = new this();
-	
-	extend.call(proto, _instance);
-	
-	proto.base = function() {
-	// call this method from any other method to invoke that method's ancestor
-	};
-
-	delete Base._prototyping;
-	
-	// create the wrapper for the constructor function
-	//var constructor = proto.constructor.valueOf(); //-dean
-	var constructor = proto.constructor;
-	var klass = proto.constructor = function() {
-		if (!Base._prototyping) {
-			if (this._constructing || this.constructor == klass) { // instantiation
-				this._constructing = true;
-				constructor.apply(this, arguments);
-				delete this._constructing;
-			} else if (arguments[0] !== null) { // casting
-				return (arguments[0].extend || extend).call(arguments[0], proto);
-			}
-		}
-	};
-	
-	// build the class interface
-	klass.ancestor = this;
-	klass.extend = this.extend;
-	klass.forEach = this.forEach;
-	klass.implement = this.implement;
-	klass.prototype = proto;
-	klass.toString = this.toString;
-	klass.valueOf = function(type) {
-		//return (type == "object") ? klass : constructor; //-dean
-		return (type == "object") ? klass : constructor.valueOf();
-	};
-	extend.call(klass, _static);
-	// class initialisation
-	if (typeof klass.init == "function") klass.init();
-	return klass;
-};
-
-Base.prototype = {	
-	extend: function(source, value) {
-		if (arguments.length > 1) { // extending with a name/value pair
-			var ancestor = this[source];
-			if (ancestor && (typeof value == "function") && // overriding a method?
-				// the valueOf() comparison is to avoid circular references
-				(!ancestor.valueOf || ancestor.valueOf() != value.valueOf()) &&
-				/\bbase\b/.test(value)) {
-				// get the underlying method
-				var method = value.valueOf();
-				// override
-				value = function() {
-					var previous = this.base || Base.prototype.base;
-					this.base = ancestor;
-					var returnValue = method.apply(this, arguments);
-					this.base = previous;
-					return returnValue;
-				};
-				// point to the underlying method
-				value.valueOf = function(type) {
-					return (type == "object") ? value : method;
-				};
-				value.toString = Base.toString;
-			}
-			this[source] = value;
-		} else if (source) { // extending with an object literal
-			var extend = Base.prototype.extend;
-			// if this object has a customised extend method then use it
-			if (!Base._prototyping && typeof this != "function") {
-				extend = this.extend || extend;
-			}
-			var proto = {toSource: null};
-			// do the "toString" and other methods manually
-			var hidden = ["constructor", "toString", "valueOf"];
-			// if we are prototyping then include the constructor
-			var i = Base._prototyping ? 0 : 1;
-			while (key = hidden[i++]) {
-				if (source[key] != proto[key]) {
-					extend.call(this, key, source[key]);
-
-				}
-			}
-			// copy each of the source object's properties to this object
-			for (var key in source) {
-				if (!proto[key]) extend.call(this, key, source[key]);
-			}
-		}
-		return this;
-	}
-};
-
-// initialise
-Base = Base.extend({
-	constructor: function() {
-		this.extend(arguments[0]);
-	}
-}, {
-	ancestor: Object,
-	version: "1.1",
-	
-	forEach: function(object, block, context) {
-		for (var key in object) {
-			if (this.prototype[key] === undefined) {
-				block.call(context, object[key], key, object);
-			}
-		}
-	},
-		
-	implement: function() {
-		for (var i = 0; i < arguments.length; i++) {
-			if (typeof arguments[i] == "function") {
-				// if it's a function, call it
-				arguments[i](this.prototype);
-			} else {
-				// add the interface using the extend method
-				this.prototype.extend(arguments[i]);
-			}
-		}
-		return this;
-	},
-	
-	toString: function() {
-		return String(this.valueOf());
-	}
-});
-/*jshint smarttabs:true */
-
-var FlipClock;
-	
-/**
- * FlipClock.js
+/*!
+ * jQuery Mousewheel 3.1.13
  *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
+ * Copyright jQuery Foundation and other contributors
+ * Released under the MIT license
+ * http://jquery.org/license
  */
-	
-(function($) {
-	
-	"use strict";
-	
-	/**
-	 * FlipFlock Helper
-	 *
-	 * @param  object  A jQuery object or CSS select
-	 * @param  int     An integer used to start the clock (no. seconds)
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	FlipClock = function(obj, digit, options) {
-		if(digit instanceof Object && digit instanceof Date === false) {
-			options = digit;
-			digit = 0;
-		}
 
-		return new FlipClock.Factory(obj, digit, options);
-	};
+(function (factory) {
+    if ( typeof define === 'function' && define.amd ) {
+        // AMD. Register as an anonymous module.
+        define(['jquery'], factory);
+    } else if (typeof exports === 'object') {
+        // Node/CommonJS style for Browserify
+        module.exports = factory;
+    } else {
+        // Browser globals
+        factory(jQuery);
+    }
+}(function ($) {
 
-	/**
-	 * The global FlipClock.Lang object
-	 */
+    var toFix  = ['wheel', 'mousewheel', 'DOMMouseScroll', 'MozMousePixelScroll'],
+        toBind = ( 'onwheel' in document || document.documentMode >= 9 ) ?
+                    ['wheel'] : ['mousewheel', 'DomMouseScroll', 'MozMousePixelScroll'],
+        slice  = Array.prototype.slice,
+        nullLowestDeltaTimeout, lowestDelta;
 
-	FlipClock.Lang = {};
-	
-	/**
-	 * The Base FlipClock class is used to extend all other FlipFlock
-	 * classes. It handles the callbacks and the basic setters/getters
-	 *	
-	 * @param 	object  An object of the default properties
-	 * @param 	object  An object of properties to override the default	
-	 */
+    if ( $.event.fixHooks ) {
+        for ( var i = toFix.length; i; ) {
+            $.event.fixHooks[ toFix[--i] ] = $.event.mouseHooks;
+        }
+    }
 
-	FlipClock.Base = Base.extend({
-		
-		/**
-		 * Build Date
-		 */
-		 
-		buildDate: '2014-10-06',
-		
-		/**
-		 * Version
-		 */
-		 
-		version: '0.7.5',
-		
-		/**
-		 * Sets the default options
-		 *
-		 * @param	object 	The default options
-		 * @param	object 	The override options
-		 */
-		 
-		constructor: function(_default, options) {
-			if(typeof _default !== "object") {
-				_default = {};
-			}
-			if(typeof options !== "object") {
-				options = {};
-			}
-			this.setOptions($.extend(true, {}, _default, options));
-		},
-		
-		/**
-		 * Delegates the callback to the defined method
-		 *
-		 * @param	object 	The default options
-		 * @param	object 	The override options
-		 */
-		 
-		callback: function(method) {
-		 	if(typeof method === "function") {
-				var args = [];
-								
-				for(var x = 1; x <= arguments.length; x++) {
-					if(arguments[x]) {
-						args.push(arguments[x]);
-					}
-				}
-				
-				method.apply(this, args);
-			}
-		},
-		 
-		/**
-		 * Log a string into the console if it exists
-		 *
-		 * @param 	string 	The name of the option
-		 * @return	mixed
-		 */		
-		 
-		log: function(str) {
-			if(window.console && console.log) {
-				console.log(str);
-			}
-		},
-		 
-		/**
-		 * Get an single option value. Returns false if option does not exist
-		 *
-		 * @param 	string 	The name of the option
-		 * @return	mixed
-		 */		
-		 
-		getOption: function(index) {
-			if(this[index]) {
-				return this[index];
-			}
-			return false;
-		},
-		
-		/**
-		 * Get all options
-		 *
-		 * @return	bool
-		 */		
-		 
-		getOptions: function() {
-			return this;
-		},
-		
-		/**
-		 * Set a single option value
-		 *
-		 * @param 	string 	The name of the option
-		 * @param 	mixed 	The value of the option
-		 */		
-		 
-		setOption: function(index, value) {
-			this[index] = value;
-		},
-		
-		/**
-		 * Set a multiple options by passing a JSON object
-		 *
-		 * @param 	object 	The object with the options
-		 * @param 	mixed 	The value of the option
-		 */		
-		
-		setOptions: function(options) {
-			for(var key in options) {
-	  			if(typeof options[key] !== "undefined") {
-		  			this.setOption(key, options[key]);
-		  		}
-		  	}
-		}
-		
-	});
-	
-}(jQuery));
+    var special = $.event.special.mousewheel = {
+        version: '3.1.12',
 
-/*jshint smarttabs:true */
+        setup: function() {
+            if ( this.addEventListener ) {
+                for ( var i = toBind.length; i; ) {
+                    this.addEventListener( toBind[--i], handler, false );
+                }
+            } else {
+                this.onmousewheel = handler;
+            }
+            // Store the line height and page height for this particular element
+            $.data(this, 'mousewheel-line-height', special.getLineHeight(this));
+            $.data(this, 'mousewheel-page-height', special.getPageHeight(this));
+        },
 
-/**
- * FlipClock.js
+        teardown: function() {
+            if ( this.removeEventListener ) {
+                for ( var i = toBind.length; i; ) {
+                    this.removeEventListener( toBind[--i], handler, false );
+                }
+            } else {
+                this.onmousewheel = null;
+            }
+            // Clean up the data we added to the element
+            $.removeData(this, 'mousewheel-line-height');
+            $.removeData(this, 'mousewheel-page-height');
+        },
+
+        getLineHeight: function(elem) {
+            var $elem = $(elem),
+                $parent = $elem['offsetParent' in $.fn ? 'offsetParent' : 'parent']();
+            if (!$parent.length) {
+                $parent = $('body');
+            }
+            return parseInt($parent.css('fontSize'), 10) || parseInt($elem.css('fontSize'), 10) || 16;
+        },
+
+        getPageHeight: function(elem) {
+            return $(elem).height();
+        },
+
+        settings: {
+            adjustOldDeltas: true, // see shouldAdjustOldDeltas() below
+            normalizeOffset: true  // calls getBoundingClientRect for each event
+        }
+    };
+
+    $.fn.extend({
+        mousewheel: function(fn) {
+            return fn ? this.bind('mousewheel', fn) : this.trigger('mousewheel');
+        },
+
+        unmousewheel: function(fn) {
+            return this.unbind('mousewheel', fn);
+        }
+    });
+
+
+    function handler(event) {
+        var orgEvent   = event || window.event,
+            args       = slice.call(arguments, 1),
+            delta      = 0,
+            deltaX     = 0,
+            deltaY     = 0,
+            absDelta   = 0,
+            offsetX    = 0,
+            offsetY    = 0;
+        event = $.event.fix(orgEvent);
+        event.type = 'mousewheel';
+
+        // Old school scrollwheel delta
+        if ( 'detail'      in orgEvent ) { deltaY = orgEvent.detail * -1;      }
+        if ( 'wheelDelta'  in orgEvent ) { deltaY = orgEvent.wheelDelta;       }
+        if ( 'wheelDeltaY' in orgEvent ) { deltaY = orgEvent.wheelDeltaY;      }
+        if ( 'wheelDeltaX' in orgEvent ) { deltaX = orgEvent.wheelDeltaX * -1; }
+
+        // Firefox < 17 horizontal scrolling related to DOMMouseScroll event
+        if ( 'axis' in orgEvent && orgEvent.axis === orgEvent.HORIZONTAL_AXIS ) {
+            deltaX = deltaY * -1;
+            deltaY = 0;
+        }
+
+        // Set delta to be deltaY or deltaX if deltaY is 0 for backwards compatabilitiy
+        delta = deltaY === 0 ? deltaX : deltaY;
+
+        // New school wheel delta (wheel event)
+        if ( 'deltaY' in orgEvent ) {
+            deltaY = orgEvent.deltaY * -1;
+            delta  = deltaY;
+        }
+        if ( 'deltaX' in orgEvent ) {
+            deltaX = orgEvent.deltaX;
+            if ( deltaY === 0 ) { delta  = deltaX * -1; }
+        }
+
+        // No change actually happened, no reason to go any further
+        if ( deltaY === 0 && deltaX === 0 ) { return; }
+
+        // Need to convert lines and pages to pixels if we aren't already in pixels
+        // There are three delta modes:
+        //   * deltaMode 0 is by pixels, nothing to do
+        //   * deltaMode 1 is by lines
+        //   * deltaMode 2 is by pages
+        if ( orgEvent.deltaMode === 1 ) {
+            var lineHeight = $.data(this, 'mousewheel-line-height');
+            delta  *= lineHeight;
+            deltaY *= lineHeight;
+            deltaX *= lineHeight;
+        } else if ( orgEvent.deltaMode === 2 ) {
+            var pageHeight = $.data(this, 'mousewheel-page-height');
+            delta  *= pageHeight;
+            deltaY *= pageHeight;
+            deltaX *= pageHeight;
+        }
+
+        // Store lowest absolute delta to normalize the delta values
+        absDelta = Math.max( Math.abs(deltaY), Math.abs(deltaX) );
+
+        if ( !lowestDelta || absDelta < lowestDelta ) {
+            lowestDelta = absDelta;
+
+            // Adjust older deltas if necessary
+            if ( shouldAdjustOldDeltas(orgEvent, absDelta) ) {
+                lowestDelta /= 40;
+            }
+        }
+
+        // Adjust older deltas if necessary
+        if ( shouldAdjustOldDeltas(orgEvent, absDelta) ) {
+            // Divide all the things by 40!
+            delta  /= 40;
+            deltaX /= 40;
+            deltaY /= 40;
+        }
+
+        // Get a whole, normalized value for the deltas
+        delta  = Math[ delta  >= 1 ? 'floor' : 'ceil' ](delta  / lowestDelta);
+        deltaX = Math[ deltaX >= 1 ? 'floor' : 'ceil' ](deltaX / lowestDelta);
+        deltaY = Math[ deltaY >= 1 ? 'floor' : 'ceil' ](deltaY / lowestDelta);
+
+        // Normalise offsetX and offsetY properties
+        if ( special.settings.normalizeOffset && this.getBoundingClientRect ) {
+            var boundingRect = this.getBoundingClientRect();
+            offsetX = event.clientX - boundingRect.left;
+            offsetY = event.clientY - boundingRect.top;
+        }
+
+        // Add information to the event object
+        event.deltaX = deltaX;
+        event.deltaY = deltaY;
+        event.deltaFactor = lowestDelta;
+        event.offsetX = offsetX;
+        event.offsetY = offsetY;
+        // Go ahead and set deltaMode to 0 since we converted to pixels
+        // Although this is a little odd since we overwrite the deltaX/Y
+        // properties with normalized deltas.
+        event.deltaMode = 0;
+
+        // Add event and delta to the front of the arguments
+        args.unshift(event, delta, deltaX, deltaY);
+
+        // Clearout lowestDelta after sometime to better
+        // handle multiple device types that give different
+        // a different lowestDelta
+        // Ex: trackpad = 3 and mouse wheel = 120
+        if (nullLowestDeltaTimeout) { clearTimeout(nullLowestDeltaTimeout); }
+        nullLowestDeltaTimeout = setTimeout(nullLowestDelta, 200);
+
+        return ($.event.dispatch || $.event.handle).apply(this, args);
+    }
+
+    function nullLowestDelta() {
+        lowestDelta = null;
+    }
+
+    function shouldAdjustOldDeltas(orgEvent, absDelta) {
+        // If this is an older event and the delta is divisable by 120,
+        // then we are assuming that the browser is treating this as an
+        // older mouse wheel event and that we should divide the deltas
+        // by 40 to try and get a more usable deltaFactor.
+        // Side note, this actually impacts the reported scroll distance
+        // in older browsers and can cause scrolling to be slower than native.
+        // Turn this off by setting $.event.special.mousewheel.settings.adjustOldDeltas to false.
+        return special.settings.adjustOldDeltas && orgEvent.type === 'mousewheel' && absDelta % 120 === 0;
+    }
+
+}));
+
+/*!
+ * fancyBox - jQuery Plugin
+ * version: 2.1.5 (Fri, 14 Jun 2013)
+ * requires jQuery v1.6 or later
  *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
- */
-	
-(function($) {
-	
-	"use strict";
-	
-	/**
-	 * The FlipClock Face class is the base class in which to extend
-	 * all other FlockClock.Face classes.
-	 *
-	 * @param 	object  The parent FlipClock.Factory object
-	 * @param 	object  An object of properties to override the default	
-	 */
-	 
-	FlipClock.Face = FlipClock.Base.extend({
-		
-		/**
-		 * Sets whether or not the clock should start upon instantiation
-		 */
-		 
-		autoStart: true,
-
-		/**
-		 * An array of jQuery objects used for the dividers (the colons)
-		 */
-		 
-		dividers: [],
-
-		/**
-		 * An array of FlipClock.List objects
-		 */		
-		 
-		factory: false,
-		
-		/**
-		 * An array of FlipClock.List objects
-		 */		
-		 
-		lists: [],
-
-		/**
-		 * Constructor
-		 *
-		 * @param 	object  The parent FlipClock.Factory object
-		 * @param 	object  An object of properties to override the default	
-		 */
-		 
-		constructor: function(factory, options) {
-			this.dividers = [];
-			this.lists = [];
-			this.base(options);
-			this.factory = factory;
-		},
-		
-		/**
-		 * Build the clock face
-		 */
-		 
-		build: function() {
-			if(this.autoStart) {
-				this.start();
-			}
-		},
-		
-		/**
-		 * Creates a jQuery object used for the digit divider
-		 *
-		 * @param	mixed 	The divider label text
-		 * @param	mixed	Set true to exclude the dots in the divider. 
-		 *					If not set, is false.
-		 */
-		 
-		createDivider: function(label, css, excludeDots) {
-			if(typeof css == "boolean" || !css) {
-				excludeDots = css;
-				css = label;
-			}
-
-			var dots = [
-				'<span class="'+this.factory.classes.dot+' top"></span>',
-				'<span class="'+this.factory.classes.dot+' bottom"></span>'
-			].join('');
-
-			if(excludeDots) {
-				dots = '';	
-			}
-
-			label = this.factory.localize(label);
-
-			var html = [
-				'<span class="'+this.factory.classes.divider+' '+(css ? css : '').toLowerCase()+'">',
-					'<span class="'+this.factory.classes.label+'">'+(label ? label : '')+'</span>',
-					dots,
-				'</span>'
-			];	
-			
-			var $html = $(html.join(''));
-
-			this.dividers.push($html);
-
-			return $html;
-		},
-		
-		/**
-		 * Creates a FlipClock.List object and appends it to the DOM
-		 *
-		 * @param	mixed 	The digit to select in the list
-		 * @param	object  An object to override the default properties
-		 */
-		 
-		createList: function(digit, options) {
-			if(typeof digit === "object") {
-				options = digit;
-				digit = 0;
-			}
-
-			var obj = new FlipClock.List(this.factory, digit, options);
-		
-			this.lists.push(obj);
-
-			return obj;
-		},
-		
-		/**
-		 * Triggers when the clock is reset
-		 */
-
-		reset: function() {
-			this.factory.time = new FlipClock.Time(
-				this.factor, 
-				this.factory.original ? Math.round(this.factory.original) : 0,
-				{
-					minimumDigits: this.factory.minimumDigits
-				}
-			);
-
-			this.flip(this.factory.original, false);
-		},
-
-		/**
-		 * Append a newly created list to the clock
-		 */
-
-		appendDigitToClock: function(obj) {
-			obj.$el.append(false);
-		},
-
-		/**
-		 * Add a digit to the clock face
-		 */
-		 
-		addDigit: function(digit) {
-			var obj = this.createList(digit, {
-				classes: {
-					active: this.factory.classes.active,
-					before: this.factory.classes.before,
-					flip: this.factory.classes.flip
-				}
-			});
-
-			this.appendDigitToClock(obj);
-		},
-		
-		/**
-		 * Triggers when the clock is started
-		 */
-		 
-		start: function() {},
-		
-		/**
-		 * Triggers when the time on the clock stops
-		 */
-		 
-		stop: function() {},
-		
-		/**
-		 * Auto increments/decrements the value of the clock face
-		 */
-		 
-		autoIncrement: function() {
-			if(!this.factory.countdown) {
-				this.increment();
-			}
-			else {
-				this.decrement();
-			}
-		},
-
-		/**
-		 * Increments the value of the clock face
-		 */
-		 
-		increment: function() {
-			this.factory.time.addSecond();
-		},
-
-		/**
-		 * Decrements the value of the clock face
-		 */
-
-		decrement: function() {
-			if(this.factory.time.getTimeSeconds() == 0) {
-	        	this.factory.stop()
-			}
-			else {
-				this.factory.time.subSecond();
-			}
-		},
-			
-		/**
-		 * Triggers when the numbers on the clock flip
-		 */
-		 
-		flip: function(time, doNotAddPlayClass) {
-			var t = this;
-
-			$.each(time, function(i, digit) {
-				var list = t.lists[i];
-
-				if(list) {
-					if(!doNotAddPlayClass && digit != list.digit) {
-						list.play();	
-					}
-
-					list.select(digit);
-				}	
-				else {
-					t.addDigit(digit);
-				}
-			});
-		}
-					
-	});
-	
-}(jQuery));
-
-/*jshint smarttabs:true */
-
-/**
- * FlipClock.js
+ * Examples at http://fancyapps.com/fancybox/
+ * License: www.fancyapps.com/fancybox/#license
  *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
- */
-	
-(function($) {
-	
-	"use strict";
-	
-	/**
-	 * The FlipClock Factory class is used to build the clock and manage
-	 * all the public methods.
-	 *
-	 * @param 	object  A jQuery object or CSS selector used to fetch
-	 				    the wrapping DOM nodes
-	 * @param 	mixed   This is the digit used to set the clock. If an 
-	 				    object is passed, 0 will be used.	
-	 * @param 	object  An object of properties to override the default	
-	 */
-	 	
-	FlipClock.Factory = FlipClock.Base.extend({
-		
-		/**
-		 * The clock's animation rate.
-		 * 
-		 * Note, currently this property doesn't do anything.
-		 * This property is here to be used in the future to
-		 * programmaticaly set the clock's animation speed
-		 */		
-
-		animationRate: 1000,
-
-		/**
-		 * Auto start the clock on page load (True|False)
-		 */	
-		 
-		autoStart: true,
-		
-		/**
-		 * The callback methods
-		 */		
-		 
-		callbacks: {
-			destroy: false,
-			create: false,
-			init: false,
-			interval: false,
-			start: false,
-			stop: false,
-			reset: false
-		},
-		
-		/**
-		 * The CSS classes
-		 */		
-		 
-		classes: {
-			active: 'flip-clock-active',
-			before: 'flip-clock-before',
-			divider: 'flip-clock-divider',
-			dot: 'flip-clock-dot',
-			label: 'flip-clock-label',
-			flip: 'flip',
-			play: 'play',
-			wrapper: 'flip-clock-wrapper'
-		},
-		
-		/**
-		 * The name of the clock face class in use
-		 */	
-		 
-		clockFace: 'HourlyCounter',
-		 
-		/**
-		 * The name of the clock face class in use
-		 */	
-		 
-		countdown: false,
-		 
-		/**
-		 * The name of the default clock face class to use if the defined
-		 * clockFace variable is not a valid FlipClock.Face object
-		 */	
-		 
-		defaultClockFace: 'HourlyCounter',
-		 
-		/**
-		 * The default language
-		 */	
-		 
-		defaultLanguage: 'english',
-		 
-		/**
-		 * The jQuery object
-		 */		
-		 
-		$el: false,
-
-		/**
-		 * The FlipClock.Face object
-		 */	
-		 
-		face: true,
-		 
-		/**
-		 * The language object after it has been loaded
-		 */	
-		 
-		lang: false,
-		 
-		/**
-		 * The language being used to display labels (string)
-		 */	
-		 
-		language: 'english',
-		 
-		/**
-		 * The minimum digits the clock must have
-		 */		
-
-		minimumDigits: 0,
-
-		/**
-		 * The original starting value of the clock. Used for the reset method.
-		 */		
-		 
-		original: false,
-		
-		/**
-		 * Is the clock running? (True|False)
-		 */		
-		 
-		running: false,
-		
-		/**
-		 * The FlipClock.Time object
-		 */		
-		 
-		time: false,
-		
-		/**
-		 * The FlipClock.Timer object
-		 */		
-		 
-		timer: false,
-		
-		/**
-		 * The jQuery object (depcrecated)
-		 */		
-		 
-		$wrapper: false,
-		
-		/**
-		 * Constructor
-		 *
-		 * @param   object  The wrapping jQuery object
-		 * @param	object  Number of seconds used to start the clock
-		 * @param	object 	An object override options
-		 */
-		 
-		constructor: function(obj, digit, options) {
-
-			if(!options) {
-				options = {};
-			}
-
-			this.lists = [];
-			this.running = false;
-			this.base(options);	
-
-			this.$el = $(obj).addClass(this.classes.wrapper);
-
-			// Depcrated support of the $wrapper property.
-			this.$wrapper = this.$el;
-
-			this.original = (digit instanceof Date) ? digit : (digit ? Math.round(digit) : 0);
-
-			this.time = new FlipClock.Time(this, this.original, {
-				minimumDigits: this.minimumDigits,
-				animationRate: this.animationRate 
-			});
-
-			this.timer = new FlipClock.Timer(this, options);
-
-			this.loadLanguage(this.language);
-			
-			this.loadClockFace(this.clockFace, options);
-
-			if(this.autoStart) {
-				this.start();
-			}
-
-		},
-		
-		/**
-		 * Load the FlipClock.Face object
-		 *
-		 * @param	object  The name of the FlickClock.Face class
-		 * @param	object 	An object override options
-		 */
-		 
-		loadClockFace: function(name, options) {	
-			var face, suffix = 'Face', hasStopped = false;
-			
-			name = name.ucfirst()+suffix;
-
-			if(this.face.stop) {
-				this.stop();
-				hasStopped = true;
-			}
-
-			this.$el.html('');
-
-			this.time.minimumDigits = this.minimumDigits;
-			
-			if(FlipClock[name]) {
-				face = new FlipClock[name](this, options);
-			}
-			else {
-				face = new FlipClock[this.defaultClockFace+suffix](this, options);
-			}
-			
-			face.build();
-
-			this.face = face
-
-			if(hasStopped) {
-				this.start();
-			}
-			
-			return this.face;
-		},
-				
-		/**
-		 * Load the FlipClock.Lang object
-		 *
-		 * @param	object  The name of the language to load
-		 */
-		 
-		loadLanguage: function(name) {	
-			var lang;
-			
-			if(FlipClock.Lang[name.ucfirst()]) {
-				lang = FlipClock.Lang[name.ucfirst()];
-			}
-			else if(FlipClock.Lang[name]) {
-				lang = FlipClock.Lang[name];
-			}
-			else {
-				lang = FlipClock.Lang[this.defaultLanguage];
-			}
-			
-			return this.lang = lang;
-		},
-					
-		/**
-		 * Localize strings into various languages
-		 *
-		 * @param	string  The index of the localized string
-		 * @param	object  Optionally pass a lang object
-		 */
-
-		localize: function(index, obj) {
-			var lang = this.lang;
-
-			if(!index) {
-				return null;
-			}
-
-			var lindex = index.toLowerCase();
-
-			if(typeof obj == "object") {
-				lang = obj;
-			}
-
-			if(lang && lang[lindex]) {
-				return lang[lindex];
-			}
-
-			return index;
-		},
-		 
-
-		/**
-		 * Starts the clock
-		 */
-		 
-		start: function(callback) {
-			var t = this;
-
-			if(!t.running && (!t.countdown || t.countdown && t.time.time > 0)) {
-				t.face.start(t.time);
-				t.timer.start(function() {
-					t.flip();
-					
-					if(typeof callback === "function") {
-						callback();
-					}	
-				});
-			}
-			else {
-				t.log('Trying to start timer when countdown already at 0');
-			}
-		},
-		
-		/**
-		 * Stops the clock
-		 */
-		 
-		stop: function(callback) {
-			this.face.stop();
-			this.timer.stop(callback);
-			
-			for(var x in this.lists) {
-				if (this.lists.hasOwnProperty(x)) {
-					this.lists[x].stop();
-				}
-			}	
-		},
-		
-		/**
-		 * Reset the clock
-		 */
-		 
-		reset: function(callback) {
-			this.timer.reset(callback);
-			this.face.reset();
-		},
-		
-		/**
-		 * Sets the clock time
-		 */
-		 
-		setTime: function(time) {
-			this.time.time = time;
-			this.flip(true);		
-		},
-		
-		/**
-		 * Get the clock time
-		 *
-		 * @return  object  Returns a FlipClock.Time object
-		 */
-		 
-		getTime: function(time) {
-			return this.time;		
-		},
-		
-		/**
-		 * Changes the increment of time to up or down (add/sub)
-		 */
-		 
-		setCountdown: function(value) {
-			var running = this.running;
-			
-			this.countdown = value ? true : false;
-				
-			if(running) {
-				this.stop();
-				this.start();
-			}
-		},
-		
-		/**
-		 * Flip the digits on the clock
-		 *
-		 * @param  array  An array of digits	 
-		 */
-		flip: function(doNotAddPlayClass) {	
-			this.face.flip(false, doNotAddPlayClass);
-		}
-		
-	});
-		
-}(jQuery));
-
-/*jshint smarttabs:true */
-
-/**
- * FlipClock.js
+ * Copyright 2012 Janis Skarnelis - janis@fancyapps.com
  *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
  */
-	
-(function($) {
-	
+
+;(function (window, document, $, undefined) {
 	"use strict";
-	
-	/**
-	 * The FlipClock List class is used to build the list used to create 
-	 * the card flip effect. This object fascilates selecting the correct
-	 * node by passing a specific digit.
-	 *
-	 * @param 	object  A FlipClock.Factory object
-	 * @param 	mixed   This is the digit used to set the clock. If an 
-	 *				    object is passed, 0 will be used.	
-	 * @param 	object  An object of properties to override the default	
-	 */
-	 	
-	FlipClock.List = FlipClock.Base.extend({
-		
-		/**
-		 * The digit (0-9)
-		 */		
-		 
-		digit: 0,
-		
-		/**
-		 * The CSS classes
-		 */		
-		 
-		classes: {
-			active: 'flip-clock-active',
-			before: 'flip-clock-before',
-			flip: 'flip'	
+
+	var H = $("html"),
+		W = $(window),
+		D = $(document),
+		F = $.fancybox = function () {
+			F.open.apply( this, arguments );
 		},
-				
-		/**
-		 * The parent FlipClock.Factory object
-		 */		
-		 
-		factory: false,
-		
-		/**
-		 * The jQuery object
-		 */		
-		 
-		$el: false,
+		IE =  navigator.userAgent.match(/msie/i),
+		didUpdate	= null,
+		isTouch		= document.createTouch !== undefined,
 
-		/**
-		 * The jQuery object (deprecated)
-		 */		
-		 
-		$obj: false,
-		
-		/**
-		 * The items in the list
-		 */		
-		 
-		items: [],
-		
-		/**
-		 * The last digit
-		 */		
-		 
-		lastDigit: 0,
-			
-		/**
-		 * Constructor
-		 *
-		 * @param  object  A FlipClock.Factory object
-		 * @param  int     An integer use to select the correct digit
-		 * @param  object  An object to override the default properties	 
-		 */
-		 
-		constructor: function(factory, digit, options) {
-			this.factory = factory;
-			this.digit = digit;
-			this.lastDigit = digit;
-			this.$el = this.createList();
-			
-			// Depcrated support of the $obj property.
-			this.$obj = this.$el;
+		isQuery	= function(obj) {
+			return obj && obj.hasOwnProperty && obj instanceof $;
+		},
+		isString = function(str) {
+			return str && $.type(str) === "string";
+		},
+		isPercentage = function(str) {
+			return isString(str) && str.indexOf('%') > 0;
+		},
+		isScrollable = function(el) {
+			return (el && !(el.style.overflow && el.style.overflow === 'hidden') && ((el.clientWidth && el.scrollWidth > el.clientWidth) || (el.clientHeight && el.scrollHeight > el.clientHeight)));
+		},
+		getScalar = function(orig, dim) {
+			var value = parseInt(orig, 10) || 0;
 
-			if(digit > 0) {
-				this.select(digit);
+			if (dim && isPercentage(orig)) {
+				value = F.getViewport()[ dim ] / 100 * value;
 			}
 
-			this.factory.$el.append(this.$el);
+			return Math.ceil(value);
 		},
-		
-		/**
-		 * Select the digit in the list
-		 *
-		 * @param  int  A digit 0-9	 
-		 */
-		 
-		select: function(digit) {
-			if(typeof digit === "undefined") {
-				digit = this.digit;
-			}
-			else {
-				this.digit = digit;
-			}
+		getValue = function(value, dim) {
+			return getScalar(value, dim) + 'px';
+		};
 
-			if(this.digit != this.lastDigit) {
-				var $delete = this.$el.find('.'+this.classes.before).removeClass(this.classes.before);
+	$.extend(F, {
+		// The current version of fancyBox
+		version: '2.1.5',
 
-				this.$el.find('.'+this.classes.active).removeClass(this.classes.active)
-													  .addClass(this.classes.before);
+		defaults: {
+			padding : 15,
+			margin  : 20,
 
-				this.appendListItem(this.classes.active, this.digit);
+			width     : 800,
+			height    : 600,
+			minWidth  : 100,
+			minHeight : 100,
+			maxWidth  : 9999,
+			maxHeight : 9999,
+			pixelRatio: 1, // Set to 2 for retina display support
 
-				$delete.remove();
+			autoSize   : true,
+			autoHeight : false,
+			autoWidth  : false,
 
-				this.lastDigit = this.digit;
-			}	
-		},
-		
-		/**
-		 * Adds the play class to the DOM object
-		 */
-		 		
-		play: function() {
-			this.$el.addClass(this.factory.classes.play);
-		},
-		
-		/**
-		 * Removes the play class to the DOM object 
-		 */
-		 
-		stop: function() {
-			var t = this;
+			autoResize  : true,
+			autoCenter  : !isTouch,
+			fitToView   : true,
+			aspectRatio : false,
+			topRatio    : 0.5,
+			leftRatio   : 0.5,
 
-			setTimeout(function() {
-				t.$el.removeClass(t.factory.classes.play);
-			}, this.factory.timer.interval);
-		},
-		
-		/**
-		 * Creates the list item HTML and returns as a string 
-		 */
-		 
-		createListItem: function(css, value) {
-			return [
-				'<li class="'+(css ? css : '')+'">',
-					'<a href="#">',
-						'<div class="up">',
-							'<div class="shadow"></div>',
-							'<div class="inn">'+(value ? value : '')+'</div>',
-						'</div>',
-						'<div class="down">',
-							'<div class="shadow"></div>',
-							'<div class="inn">'+(value ? value : '')+'</div>',
-						'</div>',
-					'</a>',
-				'</li>'
-			].join('');
-		},
+			scrolling : 'auto', // 'auto', 'yes' or 'no'
+			wrapCSS   : '',
 
-		/**
-		 * Append the list item to the parent DOM node 
-		 */
+			arrows     : true,
+			closeBtn   : true,
+			closeClick : false,
+			nextClick  : false,
+			mouseWheel : true,
+			autoPlay   : false,
+			playSpeed  : 3000,
+			preload    : 3,
+			modal      : false,
+			loop       : true,
 
-		appendListItem: function(css, value) {
-			var html = this.createListItem(css, value);
+			ajax  : {
+				dataType : 'html',
+				headers  : { 'X-fancyBox': true }
+			},
+			iframe : {
+				scrolling : 'auto',
+				preload   : true
+			},
+			swf : {
+				wmode: 'transparent',
+				allowfullscreen   : 'true',
+				allowscriptaccess : 'always'
+			},
 
-			this.$el.append(html);
-		},
+			keys  : {
+				next : {
+					13 : 'left', // enter
+					34 : 'up',   // page down
+					39 : 'left', // right arrow
+					40 : 'up'    // down arrow
+				},
+				prev : {
+					8  : 'right',  // backspace
+					33 : 'down',   // page up
+					37 : 'right',  // left arrow
+					38 : 'down'    // up arrow
+				},
+				close  : [27], // escape key
+				play   : [32], // space - start/stop slideshow
+				toggle : [70]  // letter "f" - toggle fullscreen
+			},
 
-		/**
-		 * Create the list of digits and appends it to the DOM object 
-		 */
-		 
-		createList: function() {
+			direction : {
+				next : 'left',
+				prev : 'right'
+			},
 
-			var lastDigit = this.getPrevDigit() ? this.getPrevDigit() : this.digit;
+			scrollOutside  : true,
 
-			var html = $([
-				'<ul class="'+this.classes.flip+' '+(this.factory.running ? this.factory.classes.play : '')+'">',
-					this.createListItem(this.classes.before, lastDigit),
-					this.createListItem(this.classes.active, this.digit),
-				'</ul>'
-			].join(''));
-					
-			return html;
-		},
+			// Override some properties
+			index   : 0,
+			type    : null,
+			href    : null,
+			content : null,
+			title   : null,
 
-		getNextDigit: function() {
-			return this.digit == 9 ? 0 : this.digit + 1;
-		},
+			// HTML templates
+			tpl: {
+				wrap     : '<div class="fancybox-wrap" tabIndex="-1"><div class="fancybox-skin"><div class="fancybox-outer"><div class="fancybox-inner"></div></div></div></div>',
+				image    : '<img class="fancybox-image" src="{href}" alt="" />',
+				iframe   : '<iframe id="fancybox-frame{rnd}" name="fancybox-frame{rnd}" class="fancybox-iframe" frameborder="0" vspace="0" hspace="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen' + (IE ? ' allowtransparency="true"' : '') + '></iframe>',
+				error    : '<p class="fancybox-error">The requested content cannot be loaded.<br/>Please try again later.</p>',
+				closeBtn : '<a title="Close" class="fancybox-item fancybox-close" href="javascript:;"></a>',
+				next     : '<a title="Next" class="fancybox-nav fancybox-next" href="javascript:;"><span></span></a>',
+				prev     : '<a title="Previous" class="fancybox-nav fancybox-prev" href="javascript:;"><span></span></a>',
+				loading  : '<div id="fancybox-loading"><div></div></div>'
+			},
 
-		getPrevDigit: function() {
-			return this.digit == 0 ? 9 : this.digit - 1;
-		}
+			// Properties for each animation type
+			// Opening fancyBox
+			openEffect  : 'fade', // 'elastic', 'fade' or 'none'
+			openSpeed   : 250,
+			openEasing  : 'swing',
+			openOpacity : true,
+			openMethod  : 'zoomIn',
 
-	});
-	
-	
-}(jQuery));
+			// Closing fancyBox
+			closeEffect  : 'fade', // 'elastic', 'fade' or 'none'
+			closeSpeed   : 250,
+			closeEasing  : 'swing',
+			closeOpacity : true,
+			closeMethod  : 'zoomOut',
 
-/*jshint smarttabs:true */
+			// Changing next gallery item
+			nextEffect : 'elastic', // 'elastic', 'fade' or 'none'
+			nextSpeed  : 250,
+			nextEasing : 'swing',
+			nextMethod : 'changeIn',
 
-/**
- * FlipClock.js
- *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
- */
-	
-(function($) {
-	
-	"use strict";
-	
-	/**
-	 * Capitalize the first letter in a string
-	 *
-	 * @return string
-	 */
-	 
-	String.prototype.ucfirst = function() {
-		return this.substr(0, 1).toUpperCase() + this.substr(1);
-	};
-	
-	/**
-	 * jQuery helper method
-	 *
-	 * @param  int     An integer used to start the clock (no. seconds)
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	$.fn.FlipClock = function(digit, options) {	
-		return new FlipClock($(this), digit, options);
-	};
-	
-	/**
-	 * jQuery helper method
-	 *
-	 * @param  int     An integer used to start the clock (no. seconds)
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	$.fn.flipClock = function(digit, options) {
-		return $.fn.FlipClock(digit, options);
-	};
-	
-}(jQuery));
+			// Changing previous gallery item
+			prevEffect : 'elastic', // 'elastic', 'fade' or 'none'
+			prevSpeed  : 250,
+			prevEasing : 'swing',
+			prevMethod : 'changeOut',
 
-/*jshint smarttabs:true */
+			// Enable default helpers
+			helpers : {
+				overlay : true,
+				title   : true
+			},
 
-/**
- * FlipClock.js
- *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
- */
-	
-(function($) {
-	
-	"use strict";
-			
-	/**
-	 * The FlipClock Time class is used to manage all the time 
-	 * calculations.
-	 *
-	 * @param 	object  A FlipClock.Factory object
-	 * @param 	mixed   This is the digit used to set the clock. If an 
-	 *				    object is passed, 0 will be used.	
-	 * @param 	object  An object of properties to override the default	
-	 */
-	 	
-	FlipClock.Time = FlipClock.Base.extend({
-		
-		/**
-		 * The time (in seconds) or a date object
-		 */		
-		 
-		time: 0,
-		
-		/**
-		 * The parent FlipClock.Factory object
-		 */		
-		 
-		factory: false,
-		
-		/**
-		 * The minimum number of digits the clock face must have
-		 */		
-		 
-		minimumDigits: 0,
-
-		/**
-		 * Constructor
-		 *
-		 * @param  object  A FlipClock.Factory object
-		 * @param  int     An integer use to select the correct digit
-		 * @param  object  An object to override the default properties	 
-		 */
-		 
-		constructor: function(factory, time, options) {
-			if(typeof options != "object") {
-				options = {};
-			}
-
-			if(!options.minimumDigits) {
-				options.minimumDigits = factory.minimumDigits;
-			}
-
-			this.base(options);
-			this.factory = factory;
-
-			if(time) {
-				this.time = time;
-			}
+			// Callbacks
+			onCancel     : $.noop, // If canceling
+			beforeLoad   : $.noop, // Before loading
+			afterLoad    : $.noop, // After loading
+			beforeShow   : $.noop, // Before changing in current item
+			afterShow    : $.noop, // After opening
+			beforeChange : $.noop, // Before changing gallery item
+			beforeClose  : $.noop, // Before closing
+			afterClose   : $.noop  // After closing
 		},
 
-		/**
-		 * Convert a string or integer to an array of digits
-		 *
-		 * @param   mixed  String or Integer of digits	 
-		 * @return  array  An array of digits 
-		 */
-		 
-		convertDigitsToArray: function(str) {
-			var data = [];
-			
-			str = str.toString();
-			
-			for(var x = 0;x < str.length; x++) {
-				if(str[x].match(/^\d*$/g)) {
-					data.push(str[x]);	
-				}
-			}
-			
-			return data;
-		},
-		
-		/**
-		 * Get a specific digit from the time integer
-		 *
-		 * @param   int    The specific digit to select from the time	 
-		 * @return  mixed  Returns FALSE if no digit is found, otherwise
-		 *				   the method returns the defined digit	 
-		 */
-		 
-		digit: function(i) {
-			var timeStr = this.toString();
-			var length  = timeStr.length;
-			
-			if(timeStr[length - i])	 {
-				return timeStr[length - i];
-			}
-			
-			return false;
+		//Current state
+		group    : {}, // Selected group
+		opts     : {}, // Group options
+		previous : null,  // Previous element
+		coming   : null,  // Element being loaded
+		current  : null,  // Currently loaded element
+		isActive : false, // Is activated
+		isOpen   : false, // Is currently open
+		isOpened : false, // Have been fully opened at least once
+
+		wrap  : null,
+		skin  : null,
+		outer : null,
+		inner : null,
+
+		player : {
+			timer    : null,
+			isActive : false
 		},
 
-		/**
-		 * Formats any array of digits into a valid array of digits
-		 *
-		 * @param   mixed  An array of digits	 
-		 * @return  array  An array of digits 
-		 */
-		 
-		digitize: function(obj) {
-			var data = [];
+		// Loaders
+		ajaxLoad   : null,
+		imgPreload : null,
 
-			$.each(obj, function(i, value) {
-				value = value.toString();
-				
-				if(value.length == 1) {
-					value = '0'+value;
-				}
-				
-				for(var x = 0; x < value.length; x++) {
-					data.push(value.charAt(x));
-				}				
-			});
+		// Some collections
+		transitions : {},
+		helpers     : {},
 
-			if(data.length > this.minimumDigits) {
-				this.minimumDigits = data.length;
-			}
-			
-			if(this.minimumDigits > data.length) {
-				for(var x = data.length; x < this.minimumDigits; x++) {
-					data.unshift('0');
-				}
-			}
-
-			return data;
-		},
-		
-		/**
-		 * Gets a new Date object for the current time
-		 *
-		 * @return  array  Returns a Date object
-		 */
-
-		getDateObject: function() {
-			if(this.time instanceof Date) {
-				return this.time;
-			}
-
-			return new Date((new Date()).getTime() + this.getTimeSeconds() * 1000);
-		},
-		
-		/**
-		 * Gets a digitized daily counter
-		 *
-		 * @return  object  Returns a digitized object
-		 */
-
-		getDayCounter: function(includeSeconds) {
-			var digits = [
-				this.getDays(),
-				this.getHours(true),
-				this.getMinutes(true)
-			];
-
-			if(includeSeconds) {
-				digits.push(this.getSeconds(true));
-			}
-
-			return this.digitize(digits);
-		},
-
-		/**
-		 * Gets number of days
-		 *
-		 * @param   bool  Should perform a modulus? If not sent, then no.
-		 * @return  int   Retuns a floored integer
-		 */
-		 
-		getDays: function(mod) {
-			var days = this.getTimeSeconds() / 60 / 60 / 24;
-			
-			if(mod) {
-				days = days % 7;
-			}
-			
-			return Math.floor(days);
-		},
-		
-		/**
-		 * Gets an hourly breakdown
-		 *
-		 * @return  object  Returns a digitized object
-		 */
-		 
-		getHourCounter: function() {
-			var obj = this.digitize([
-				this.getHours(),
-				this.getMinutes(true),
-				this.getSeconds(true)
-			]);
-			
-			return obj;
-		},
-		
-		/**
-		 * Gets an hourly breakdown
-		 *
-		 * @return  object  Returns a digitized object
-		 */
-		 
-		getHourly: function() {
-			return this.getHourCounter();
-		},
-		
-		/**
-		 * Gets number of hours
-		 *
-		 * @param   bool  Should perform a modulus? If not sent, then no.
-		 * @return  int   Retuns a floored integer
-		 */
-		 
-		getHours: function(mod) {
-			var hours = this.getTimeSeconds() / 60 / 60;
-			
-			if(mod) {
-				hours = hours % 24;	
-			}
-			
-			return Math.floor(hours);
-		},
-		
-		/**
-		 * Gets the twenty-four hour time
-		 *
-		 * @return  object  returns a digitized object
-		 */
-		 
-		getMilitaryTime: function(date, showSeconds) {
-			if(typeof showSeconds === "undefined") {
-				showSeconds = true;
-			}
-
-			if(!date) {
-				date = this.getDateObject();
-			}
-
-			var data  = [
-				date.getHours(),
-				date.getMinutes()			
-			];
-
-			if(showSeconds === true) {
-				data.push(date.getSeconds());
-			}
-
-			return this.digitize(data);
-		},
-				
-		/**
-		 * Gets number of minutes
-		 *
-		 * @param   bool  Should perform a modulus? If not sent, then no.
-		 * @return  int   Retuns a floored integer
-		 */
-		 
-		getMinutes: function(mod) {
-			var minutes = this.getTimeSeconds() / 60;
-			
-			if(mod) {
-				minutes = minutes % 60;
-			}
-			
-			return Math.floor(minutes);
-		},
-		
-		/**
-		 * Gets a minute breakdown
-		 */
-		 
-		getMinuteCounter: function() {
-			var obj = this.digitize([
-				this.getMinutes(),
-				this.getSeconds(true)
-			]);
-
-			return obj;
-		},
-		
-		/**
-		 * Gets time count in seconds regardless of if targetting date or not.
-		 *
-		 * @return  int   Returns a floored integer
-		 */
-		 
-		getTimeSeconds: function(date) {
-			if(!date) {
-				date = new Date();
-			}
-
-			if (this.time instanceof Date) {
-				if (this.factory.countdown) {
-					return Math.max(this.time.getTime()/1000 - date.getTime()/1000,0);
-				} else {
-					return date.getTime()/1000 - this.time.getTime()/1000 ;
-				}
-			} else {
-				return this.time;
-			}
-		},
-		
-		/**
-		 * Gets the current twelve hour time
-		 *
-		 * @return  object  Returns a digitized object
-		 */
-		 
-		getTime: function(date, showSeconds) {
-			if(typeof showSeconds === "undefined") {
-				showSeconds = true;
-			}
-
-			if(!date) {
-				date = this.getDateObject();
-			}
-
-			console.log(date);
-
-			
-			var hours = date.getHours();
-			var merid = hours > 12 ? 'PM' : 'AM';
-			var data   = [
-				hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours),
-				date.getMinutes()			
-			];
-
-			if(showSeconds === true) {
-				data.push(date.getSeconds());
-			}
-
-			return this.digitize(data);
-		},
-		
-		/**
-		 * Gets number of seconds
-		 *
-		 * @param   bool  Should perform a modulus? If not sent, then no.
-		 * @return  int   Retuns a ceiled integer
-		 */
-		 
-		getSeconds: function(mod) {
-			var seconds = this.getTimeSeconds();
-			
-			if(mod) {
-				if(seconds == 60) {
-					seconds = 0;
-				}
-				else {
-					seconds = seconds % 60;
-				}
-			}
-			
-			return Math.ceil(seconds);
-		},
-
-		/**
-		 * Gets number of weeks
-		 *
-		 * @param   bool  Should perform a modulus? If not sent, then no.
-		 * @return  int   Retuns a floored integer
-		 */
-		 
-		getWeeks: function(mod) {
-			var weeks = this.getTimeSeconds() / 60 / 60 / 24 / 7;
-			
-			if(mod) {
-				weeks = weeks % 52;
-			}
-			
-			return Math.floor(weeks);
-		},
-		
-		/**
-		 * Removes a specific number of leading zeros from the array.
-		 * This method prevents you from removing too many digits, even
-		 * if you try.
-		 *
-		 * @param   int    Total number of digits to remove 
-		 * @return  array  An array of digits 
-		 */
-		 
-		removeLeadingZeros: function(totalDigits, digits) {
-			var total    = 0;
-			var newArray = [];
-			
-			$.each(digits, function(i, digit) {
-				if(i < totalDigits) {
-					total += parseInt(digits[i], 10);
-				}
-				else {
-					newArray.push(digits[i]);
-				}
-			});
-			
-			if(total === 0) {
-				return newArray;
-			}
-			
-			return digits;
-		},
-
-		/**
-		 * Adds X second to the current time
-		 */
-
-		addSeconds: function(x) {
-			if(this.time instanceof Date) {
-				this.time.setSeconds(this.time.getSeconds() + x);
-			}
-			else {
-				this.time += x;
-			}
-		},
-
-		/**
-		 * Adds 1 second to the current time
-		 */
-
-		addSecond: function() {
-			this.addSeconds(1);
-		},
-
-		/**
-		 * Substracts X seconds from the current time
-		 */
-
-		subSeconds: function(x) {
-			if(this.time instanceof Date) {
-				this.time.setSeconds(this.time.getSeconds() - x);
-			}
-			else {
-				this.time -= x;
-			}
-		},
-
-		/**
-		 * Substracts 1 second from the current time
-		 */
-
-		subSecond: function() {
-			this.subSeconds(1);
-		},
-		
-		/**
-		 * Converts the object to a human readable string
-		 */
-		 
-		toString: function() {
-			return this.getTimeSeconds().toString();
-		}
-		
 		/*
-		getYears: function() {
-			return Math.floor(this.time / 60 / 60 / 24 / 7 / 52);
-		},
-		
-		getDecades: function() {
-			return Math.floor(this.getWeeks() / 10);
-		}*/
-	});
-	
-}(jQuery));
-
-/*jshint smarttabs:true */
-
-/**
- * FlipClock.js
- *
- * @author     Justin Kimbrell
- * @copyright  2013 - Objective HTML, LLC
- * @licesnse   http://www.opensource.org/licenses/mit-license.php
- */
-	
-(function($) {
-	
-	"use strict";
-	
-	/**
-	 * The FlipClock.Timer object managers the JS timers
-	 *
-	 * @param	object  The parent FlipClock.Factory object
-	 * @param	object  Override the default options
-	 */
-	
-	FlipClock.Timer = FlipClock.Base.extend({
-		
-		/**
-		 * Callbacks
-		 */		
-		 
-		callbacks: {
-			destroy: false,
-			create: false,
-			init: false,
-			interval: false,
-			start: false,
-			stop: false,
-			reset: false
-		},
-		
-		/**
-		 * FlipClock timer count (how many intervals have passed)
-		 */		
-		 
-		count: 0,
-		
-		/**
-		 * The parent FlipClock.Factory object
-		 */		
-		 
-		factory: false,
-		
-		/**
-		 * Timer interval (1 second by default)
-		 */		
-		 
-		interval: 1000,
-
-		/**
-		 * The rate of the animation in milliseconds (not currently in use)
-		 */		
-		 
-		animationRate: 1000,
-				
-		/**
-		 * Constructor
-		 *
-		 * @return	void
-		 */		
-		 
-		constructor: function(factory, options) {
-			this.base(options);
-			this.factory = factory;
-			this.callback(this.callbacks.init);	
-			this.callback(this.callbacks.create);
-		},
-		
-		/**
-		 * This method gets the elapsed the time as an interger
-		 *
-		 * @return	void
-		 */		
-		 
-		getElapsed: function() {
-			return this.count * this.interval;
-		},
-		
-		/**
-		 * This method gets the elapsed the time as a Date object
-		 *
-		 * @return	void
-		 */		
-		 
-		getElapsedTime: function() {
-			return new Date(this.time + this.getElapsed());
-		},
-		
-		/**
-		 * This method is resets the timer
-		 *
-		 * @param 	callback  This method resets the timer back to 0
-		 * @return	void
-		 */		
-		 
-		reset: function(callback) {
-			clearInterval(this.timer);
-			this.count = 0;
-			this._setInterval(callback);			
-			this.callback(this.callbacks.reset);
-		},
-		
-		/**
-		 * This method is starts the timer
-		 *
-		 * @param 	callback  A function that is called once the timer is destroyed
-		 * @return	void
-		 */		
-		 
-		start: function(callback) {		
-			this.factory.running = true;
-			this._createTimer(callback);
-			this.callback(this.callbacks.start);
-		},
-		
-		/**
-		 * This method is stops the timer
-		 *
-		 * @param 	callback  A function that is called once the timer is destroyed
-		 * @return	void
-		 */		
-		 
-		stop: function(callback) {
-			this.factory.running = false;
-			this._clearInterval(callback);
-			this.callback(this.callbacks.stop);
-			this.callback(callback);
-		},
-		
-		/**
-		 * Clear the timer interval
-		 *
-		 * @return	void
-		 */		
-		 
-		_clearInterval: function() {
-			clearInterval(this.timer);
-		},
-		
-		/**
-		 * Create the timer object
-		 *
-		 * @param 	callback  A function that is called once the timer is created
-		 * @return	void
-		 */		
-		 
-		_createTimer: function(callback) {
-			this._setInterval(callback);		
-		},
-		
-		/**
-		 * Destroy the timer object
-		 *
-		 * @param 	callback  A function that is called once the timer is destroyed
-		 * @return	void
-		 */		
-		 	
-		_destroyTimer: function(callback) {
-			this._clearInterval();			
-			this.timer = false;
-			this.callback(callback);
-			this.callback(this.callbacks.destroy);
-		},
-		
-		/**
-		 * This method is called each time the timer interval is ran
-		 *
-		 * @param 	callback  A function that is called once the timer is destroyed
-		 * @return	void
-		 */		
-		 
-		_interval: function(callback) {
-			this.callback(this.callbacks.interval);
-			this.callback(callback);
-			this.count++;
-		},
-		
-		/**
-		 * This sets the timer interval
-		 *
-		 * @param 	callback  A function that is called once the timer is destroyed
-		 * @return	void
-		 */		
-		 
-		_setInterval: function(callback) {
-			var t = this;
-	
-			t._interval(callback);
-
-			t.timer = setInterval(function() {		
-				t._interval(callback);
-			}, this.interval);
-		}
-			
-	});
-	
-}(jQuery));
-
-(function($) {
-	
-	/**
-	 * Twenty-Four Hour Clock Face
-	 *
-	 * This class will generate a twenty-four our clock for FlipClock.js
-	 *
-	 * @param  object  The parent FlipClock.Factory object
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	FlipClock.TwentyFourHourClockFace = FlipClock.Face.extend({
-
-		/**
-		 * Constructor
-		 *
-		 * @param  object  The parent FlipClock.Factory object
-		 * @param  object  An object of properties to override the default	
+		 *	Static methods
 		 */
-		 
-		constructor: function(factory, options) {
-			this.base(factory, options);
-		},
 
-		/**
-		 * Build the clock face
-		 *
-		 * @param  object  Pass the time that should be used to display on the clock.	
-		 */
-		 
-		build: function(time) {
-			var t        = this;
-			var children = this.factory.$el.find('ul');
-
-			if(!this.factory.time.time) {
-				this.factory.original = new Date();
-
-				this.factory.time = new FlipClock.Time(this.factory, this.factory.original);
+		open: function (group, opts) {
+			if (!group) {
+				return;
 			}
 
-			var time = time ? time : this.factory.time.getMilitaryTime(false, this.showSeconds);
+			if (!$.isPlainObject(opts)) {
+				opts = {};
+			}
 
-			if(time.length > children.length) {
-				$.each(time, function(i, digit) {
-					t.createList(digit);
+			// Close if already active
+			if (false === F.close(true)) {
+				return;
+			}
+
+			// Normalize group
+			if (!$.isArray(group)) {
+				group = isQuery(group) ? $(group).get() : [group];
+			}
+
+			// Recheck if the type of each element is `object` and set content type (image, ajax, etc)
+			$.each(group, function(i, element) {
+				var obj = {},
+					href,
+					title,
+					content,
+					type,
+					rez,
+					hrefParts,
+					selector;
+
+				if ($.type(element) === "object") {
+					// Check if is DOM element
+					if (element.nodeType) {
+						element = $(element);
+					}
+
+					if (isQuery(element)) {
+						obj = {
+							href    : element.data('fancybox-href') || element.attr('href'),
+							title   : $('<div/>').text( element.data('fancybox-title') || element.attr('title') || '' ).html(),
+							isDom   : true,
+							element : element
+						};
+
+						if ($.metadata) {
+							$.extend(true, obj, element.metadata());
+						}
+
+					} else {
+						obj = element;
+					}
+				}
+
+				href  = opts.href  || obj.href || (isString(element) ? element : null);
+				title = opts.title !== undefined ? opts.title : obj.title || '';
+
+				content = opts.content || obj.content;
+				type    = content ? 'html' : (opts.type  || obj.type);
+
+				if (!type && obj.isDom) {
+					type = element.data('fancybox-type');
+
+					if (!type) {
+						rez  = element.prop('class').match(/fancybox\.(\w+)/);
+						type = rez ? rez[1] : null;
+					}
+				}
+
+				if (isString(href)) {
+					// Try to guess the content type
+					if (!type) {
+						if (F.isImage(href)) {
+							type = 'image';
+
+						} else if (F.isSWF(href)) {
+							type = 'swf';
+
+						} else if (href.charAt(0) === '#') {
+							type = 'inline';
+
+						} else if (isString(element)) {
+							type    = 'html';
+							content = element;
+						}
+					}
+
+					// Split url into two pieces with source url and content selector, e.g,
+					// "/mypage.html #my_id" will load "/mypage.html" and display element having id "my_id"
+					if (type === 'ajax') {
+						hrefParts = href.split(/\s+/, 2);
+						href      = hrefParts.shift();
+						selector  = hrefParts.shift();
+					}
+				}
+
+				if (!content) {
+					if (type === 'inline') {
+						if (href) {
+							content = $( isString(href) ? href.replace(/.*(?=#[^\s]+$)/, '') : href ); //strip for ie7
+
+						} else if (obj.isDom) {
+							content = element;
+						}
+
+					} else if (type === 'html') {
+						content = href;
+
+					} else if (!type && !href && obj.isDom) {
+						type    = 'inline';
+						content = element;
+					}
+				}
+
+				$.extend(obj, {
+					href     : href,
+					type     : type,
+					content  : content,
+					title    : title,
+					selector : selector
+				});
+
+				group[ i ] = obj;
+			});
+
+			// Extend the defaults
+			F.opts = $.extend(true, {}, F.defaults, opts);
+
+			// All options are merged recursive except keys
+			if (opts.keys !== undefined) {
+				F.opts.keys = opts.keys ? $.extend({}, F.defaults.keys, opts.keys) : false;
+			}
+
+			F.group = group;
+
+			return F._start(F.opts.index);
+		},
+
+		// Cancel image loading or abort ajax request
+		cancel: function () {
+			var coming = F.coming;
+
+			if (coming && false === F.trigger('onCancel')) {
+				return;
+			}
+
+			F.hideLoading();
+
+			if (!coming) {
+				return;
+			}
+
+			if (F.ajaxLoad) {
+				F.ajaxLoad.abort();
+			}
+
+			F.ajaxLoad = null;
+
+			if (F.imgPreload) {
+				F.imgPreload.onload = F.imgPreload.onerror = null;
+			}
+
+			if (coming.wrap) {
+				coming.wrap.stop(true, true).trigger('onReset').remove();
+			}
+
+			F.coming = null;
+
+			// If the first item has been canceled, then clear everything
+			if (!F.current) {
+				F._afterZoomOut( coming );
+			}
+		},
+
+		// Start closing animation if is open; remove immediately if opening/closing
+		close: function (event) {
+			F.cancel();
+
+			if (false === F.trigger('beforeClose')) {
+				return;
+			}
+
+			F.unbindEvents();
+
+			if (!F.isActive) {
+				return;
+			}
+
+			if (!F.isOpen || event === true) {
+				$('.fancybox-wrap').stop(true).trigger('onReset').remove();
+
+				F._afterZoomOut();
+
+			} else {
+				F.isOpen = F.isOpened = false;
+				F.isClosing = true;
+
+				$('.fancybox-item, .fancybox-nav').remove();
+
+				F.wrap.stop(true, true).removeClass('fancybox-opened');
+
+				F.transitions[ F.current.closeMethod ]();
+			}
+		},
+
+		// Manage slideshow:
+		//   $.fancybox.play(); - toggle slideshow
+		//   $.fancybox.play( true ); - start
+		//   $.fancybox.play( false ); - stop
+		play: function ( action ) {
+			var clear = function () {
+					clearTimeout(F.player.timer);
+				},
+				set = function () {
+					clear();
+
+					if (F.current && F.player.isActive) {
+						F.player.timer = setTimeout(F.next, F.current.playSpeed);
+					}
+				},
+				stop = function () {
+					clear();
+
+					D.unbind('.player');
+
+					F.player.isActive = false;
+
+					F.trigger('onPlayEnd');
+				},
+				start = function () {
+					if (F.current && (F.current.loop || F.current.index < F.group.length - 1)) {
+						F.player.isActive = true;
+
+						D.bind({
+							'onCancel.player beforeClose.player' : stop,
+							'onUpdate.player'   : set,
+							'beforeLoad.player' : clear
+						});
+
+						set();
+
+						F.trigger('onPlayStart');
+					}
+				};
+
+			if (action === true || (!F.player.isActive && action !== false)) {
+				start();
+			} else {
+				stop();
+			}
+		},
+
+		// Navigate to next gallery item
+		next: function ( direction ) {
+			var current = F.current;
+
+			if (current) {
+				if (!isString(direction)) {
+					direction = current.direction.next;
+				}
+
+				F.jumpto(current.index + 1, direction, 'next');
+			}
+		},
+
+		// Navigate to previous gallery item
+		prev: function ( direction ) {
+			var current = F.current;
+
+			if (current) {
+				if (!isString(direction)) {
+					direction = current.direction.prev;
+				}
+
+				F.jumpto(current.index - 1, direction, 'prev');
+			}
+		},
+
+		// Navigate to gallery item by index
+		jumpto: function ( index, direction, router ) {
+			var current = F.current;
+
+			if (!current) {
+				return;
+			}
+
+			index = getScalar(index);
+
+			F.direction = direction || current.direction[ (index >= current.index ? 'next' : 'prev') ];
+			F.router    = router || 'jumpto';
+
+			if (current.loop) {
+				if (index < 0) {
+					index = current.group.length + (index % current.group.length);
+				}
+
+				index = index % current.group.length;
+			}
+
+			if (current.group[ index ] !== undefined) {
+				F.cancel();
+
+				F._start(index);
+			}
+		},
+
+		// Center inside viewport and toggle position type to fixed or absolute if needed
+		reposition: function (e, onlyAbsolute) {
+			var current = F.current,
+				wrap    = current ? current.wrap : null,
+				pos;
+
+			if (wrap) {
+				pos = F._getPosition(onlyAbsolute);
+
+				if (e && e.type === 'scroll') {
+					delete pos.position;
+
+					wrap.stop(true, true).animate(pos, 200);
+
+				} else {
+					wrap.css(pos);
+
+					current.pos = $.extend({}, current.dim, pos);
+				}
+			}
+		},
+
+		update: function (e) {
+			var type = (e && e.originalEvent && e.originalEvent.type),
+				anyway = !type || type === 'orientationchange';
+
+			if (anyway) {
+				clearTimeout(didUpdate);
+
+				didUpdate = null;
+			}
+
+			if (!F.isOpen || didUpdate) {
+				return;
+			}
+
+			didUpdate = setTimeout(function() {
+				var current = F.current;
+
+				if (!current || F.isClosing) {
+					return;
+				}
+
+				F.wrap.removeClass('fancybox-tmp');
+
+				if (anyway || type === 'load' || (type === 'resize' && current.autoResize)) {
+					F._setDimension();
+				}
+
+				if (!(type === 'scroll' && current.canShrink)) {
+					F.reposition(e);
+				}
+
+				F.trigger('onUpdate');
+
+				didUpdate = null;
+
+			}, (anyway && !isTouch ? 0 : 300));
+		},
+
+		// Shrink content to fit inside viewport or restore if resized
+		toggle: function ( action ) {
+			if (F.isOpen) {
+				F.current.fitToView = $.type(action) === "boolean" ? action : !F.current.fitToView;
+
+				// Help browser to restore document dimensions
+				if (isTouch) {
+					F.wrap.removeAttr('style').addClass('fancybox-tmp');
+
+					F.trigger('onUpdate');
+				}
+
+				F.update();
+			}
+		},
+
+		hideLoading: function () {
+			D.unbind('.loading');
+
+			$('#fancybox-loading').remove();
+		},
+
+		showLoading: function () {
+			var el, viewport;
+
+			F.hideLoading();
+
+			el = $(F.opts.tpl.loading).click(F.cancel).appendTo('body');
+
+			// If user will press the escape-button, the request will be canceled
+			D.bind('keydown.loading', function(e) {
+				if ((e.which || e.keyCode) === 27) {
+					e.preventDefault();
+
+					F.cancel();
+				}
+			});
+
+			if (!F.defaults.fixed) {
+				viewport = F.getViewport();
+
+				el.css({
+					position : 'absolute',
+					top  : (viewport.h * 0.5) + viewport.y,
+					left : (viewport.w * 0.5) + viewport.x
 				});
 			}
-			
-			this.createDivider();
-			this.createDivider();
 
-			$(this.dividers[0]).insertBefore(this.lists[this.lists.length - 2].$el);
-			$(this.dividers[1]).insertBefore(this.lists[this.lists.length - 4].$el);
-			
-			this.base();
+			F.trigger('onLoading');
 		},
-		
-		/**
-		 * Flip the clock face
-		 */
-		 
-		flip: function(time, doNotAddPlayClass) {
-			this.autoIncrement();
-			
-			time = time ? time : this.factory.time.getMilitaryTime(false, this.showSeconds);
-			
-			this.base(time, doNotAddPlayClass);	
-		}
-				
-	});
-	
-}(jQuery));
-(function($) {
-		
-	/**
-	 * Counter Clock Face
-	 *
-	 * This class will generate a generice flip counter. The timer has been
-	 * disabled. clock.increment() and clock.decrement() have been added.
-	 *
-	 * @param  object  The parent FlipClock.Factory object
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	FlipClock.CounterFace = FlipClock.Face.extend({
-		
-		/**
-		 * Tells the counter clock face if it should auto-increment
-		 */
 
-		shouldAutoIncrement: false,
+		getViewport: function () {
+			var locked = (F.current && F.current.locked) || false,
+				rez    = {
+					x: W.scrollLeft(),
+					y: W.scrollTop()
+				};
 
-		/**
-		 * Constructor
-		 *
-		 * @param  object  The parent FlipClock.Factory object
-		 * @param  object  An object of properties to override the default	
-		 */
-		 
-		constructor: function(factory, options) {
+			if (locked && locked.length) {
+				rez.w = locked[0].clientWidth;
+				rez.h = locked[0].clientHeight;
 
-			if(typeof options != "object") {
-				options = {};
+			} else {
+				// See http://bugs.jquery.com/ticket/6724
+				rez.w = isTouch && window.innerWidth  ? window.innerWidth  : W.width();
+				rez.h = isTouch && window.innerHeight ? window.innerHeight : W.height();
 			}
 
-			factory.autoStart = options.autoStart ? true : false;
+			return rez;
+		},
 
-			if(options.autoStart) {
-				this.shouldAutoIncrement = true;
+		// Unbind the keyboard / clicking actions
+		unbindEvents: function () {
+			if (F.wrap && isQuery(F.wrap)) {
+				F.wrap.unbind('.fb');
 			}
 
-			factory.increment = function() {
-				factory.countdown = false;
-				factory.setTime(factory.getTime().getTimeSeconds() + 1);
+			D.unbind('.fb');
+			W.unbind('.fb');
+		},
+
+		bindEvents: function () {
+			var current = F.current,
+				keys;
+
+			if (!current) {
+				return;
+			}
+
+			// Changing document height on iOS devices triggers a 'resize' event,
+			// that can change document height... repeating infinitely
+			W.bind('orientationchange.fb' + (isTouch ? '' : ' resize.fb') + (current.autoCenter && !current.locked ? ' scroll.fb' : ''), F.update);
+
+			keys = current.keys;
+
+			if (keys) {
+				D.bind('keydown.fb', function (e) {
+					var code   = e.which || e.keyCode,
+						target = e.target || e.srcElement;
+
+					// Skip esc key if loading, because showLoading will cancel preloading
+					if (code === 27 && F.coming) {
+						return false;
+					}
+
+					// Ignore key combinations and key events within form elements
+					if (!e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && !(target && (target.type || $(target).is('[contenteditable]')))) {
+						$.each(keys, function(i, val) {
+							if (current.group.length > 1 && val[ code ] !== undefined) {
+								F[ i ]( val[ code ] );
+
+								e.preventDefault();
+								return false;
+							}
+
+							if ($.inArray(code, val) > -1) {
+								F[ i ] ();
+
+								e.preventDefault();
+								return false;
+							}
+						});
+					}
+				});
+			}
+
+			if ($.fn.mousewheel && current.mouseWheel) {
+				F.wrap.bind('mousewheel.fb', function (e, delta, deltaX, deltaY) {
+					var target = e.target || null,
+						parent = $(target),
+						canScroll = false;
+
+					while (parent.length) {
+						if (canScroll || parent.is('.fancybox-skin') || parent.is('.fancybox-wrap')) {
+							break;
+						}
+
+						canScroll = isScrollable( parent[0] );
+						parent    = $(parent).parent();
+					}
+
+					if (delta !== 0 && !canScroll) {
+						if (F.group.length > 1 && !current.canShrink) {
+							if (deltaY > 0 || deltaX > 0) {
+								F.prev( deltaY > 0 ? 'down' : 'left' );
+
+							} else if (deltaY < 0 || deltaX < 0) {
+								F.next( deltaY < 0 ? 'up' : 'right' );
+							}
+
+							e.preventDefault();
+						}
+					}
+				});
+			}
+		},
+
+		trigger: function (event, o) {
+			var ret, obj = o || F.coming || F.current;
+
+			if (obj) {
+				if ($.isFunction( obj[event] )) {
+					ret = obj[event].apply(obj, Array.prototype.slice.call(arguments, 1));
+				}
+
+				if (ret === false) {
+					return false;
+				}
+
+				if (obj.helpers) {
+					$.each(obj.helpers, function (helper, opts) {
+						if (opts && F.helpers[helper] && $.isFunction(F.helpers[helper][event])) {
+							F.helpers[helper][event]($.extend(true, {}, F.helpers[helper].defaults, opts), obj);
+						}
+					});
+				}
+			}
+
+			D.trigger(event);
+		},
+
+		isImage: function (str) {
+			return isString(str) && str.match(/(^data:image\/.*,)|(\.(jp(e|g|eg)|gif|png|bmp|webp|svg)((\?|#).*)?$)/i);
+		},
+
+		isSWF: function (str) {
+			return isString(str) && str.match(/\.(swf)((\?|#).*)?$/i);
+		},
+
+		_start: function (index) {
+			var coming = {},
+				obj,
+				href,
+				type,
+				margin,
+				padding;
+
+			index = getScalar( index );
+			obj   = F.group[ index ] || null;
+
+			if (!obj) {
+				return false;
+			}
+
+			coming = $.extend(true, {}, F.opts, obj);
+
+			// Convert margin and padding properties to array - top, right, bottom, left
+			margin  = coming.margin;
+			padding = coming.padding;
+
+			if ($.type(margin) === 'number') {
+				coming.margin = [margin, margin, margin, margin];
+			}
+
+			if ($.type(padding) === 'number') {
+				coming.padding = [padding, padding, padding, padding];
+			}
+
+			// 'modal' propery is just a shortcut
+			if (coming.modal) {
+				$.extend(true, coming, {
+					closeBtn   : false,
+					closeClick : false,
+					nextClick  : false,
+					arrows     : false,
+					mouseWheel : false,
+					keys       : null,
+					helpers: {
+						overlay : {
+							closeClick : false
+						}
+					}
+				});
+			}
+
+			// 'autoSize' property is a shortcut, too
+			if (coming.autoSize) {
+				coming.autoWidth = coming.autoHeight = true;
+			}
+
+			if (coming.width === 'auto') {
+				coming.autoWidth = true;
+			}
+
+			if (coming.height === 'auto') {
+				coming.autoHeight = true;
+			}
+
+			/*
+			 * Add reference to the group, so it`s possible to access from callbacks, example:
+			 * afterLoad : function() {
+			 *     this.title = 'Image ' + (this.index + 1) + ' of ' + this.group.length + (this.title ? ' - ' + this.title : '');
+			 * }
+			 */
+
+			coming.group  = F.group;
+			coming.index  = index;
+
+			// Give a chance for callback or helpers to update coming item (type, title, etc)
+			F.coming = coming;
+
+			if (false === F.trigger('beforeLoad')) {
+				F.coming = null;
+
+				return;
+			}
+
+			type = coming.type;
+			href = coming.href;
+
+			if (!type) {
+				F.coming = null;
+
+				//If we can not determine content type then drop silently or display next/prev item if looping through gallery
+				if (F.current && F.router && F.router !== 'jumpto') {
+					F.current.index = index;
+
+					return F[ F.router ]( F.direction );
+				}
+
+				return false;
+			}
+
+			F.isActive = true;
+
+			if (type === 'image' || type === 'swf') {
+				coming.autoHeight = coming.autoWidth = false;
+				coming.scrolling  = 'visible';
+			}
+
+			if (type === 'image') {
+				coming.aspectRatio = true;
+			}
+
+			if (type === 'iframe' && isTouch) {
+				coming.scrolling = 'scroll';
+			}
+
+			// Build the neccessary markup
+			coming.wrap = $(coming.tpl.wrap).addClass('fancybox-' + (isTouch ? 'mobile' : 'desktop') + ' fancybox-type-' + type + ' fancybox-tmp ' + coming.wrapCSS).appendTo( coming.parent || 'body' );
+
+			$.extend(coming, {
+				skin  : $('.fancybox-skin',  coming.wrap),
+				outer : $('.fancybox-outer', coming.wrap),
+				inner : $('.fancybox-inner', coming.wrap)
+			});
+
+			$.each(["Top", "Right", "Bottom", "Left"], function(i, v) {
+				coming.skin.css('padding' + v, getValue(coming.padding[ i ]));
+			});
+
+			F.trigger('onReady');
+
+			// Check before try to load; 'inline' and 'html' types need content, others - href
+			if (type === 'inline' || type === 'html') {
+				if (!coming.content || !coming.content.length) {
+					return F._error( 'content' );
+				}
+
+			} else if (!href) {
+				return F._error( 'href' );
+			}
+
+			if (type === 'image') {
+				F._loadImage();
+
+			} else if (type === 'ajax') {
+				F._loadAjax();
+
+			} else if (type === 'iframe') {
+				F._loadIframe();
+
+			} else {
+				F._afterLoad();
+			}
+		},
+
+		_error: function ( type ) {
+			$.extend(F.coming, {
+				type       : 'html',
+				autoWidth  : true,
+				autoHeight : true,
+				minWidth   : 0,
+				minHeight  : 0,
+				scrolling  : 'no',
+				hasError   : type,
+				content    : F.coming.tpl.error
+			});
+
+			F._afterLoad();
+		},
+
+		_loadImage: function () {
+			// Reset preload image so it is later possible to check "complete" property
+			var img = F.imgPreload = new Image();
+
+			img.onload = function () {
+				this.onload = this.onerror = null;
+
+				F.coming.width  = this.width / F.opts.pixelRatio;
+				F.coming.height = this.height / F.opts.pixelRatio;
+
+				F._afterLoad();
 			};
 
-			factory.decrement = function() {
-				factory.countdown = true;
-				var time = factory.getTime().getTimeSeconds();
-				if(time > 0) {
-					factory.setTime(time - 1);
+			img.onerror = function () {
+				this.onload = this.onerror = null;
+
+				F._error( 'image' );
+			};
+
+			img.src = F.coming.href;
+
+			if (img.complete !== true) {
+				F.showLoading();
+			}
+		},
+
+		_loadAjax: function () {
+			var coming = F.coming;
+
+			F.showLoading();
+
+			F.ajaxLoad = $.ajax($.extend({}, coming.ajax, {
+				url: coming.href,
+				error: function (jqXHR, textStatus) {
+					if (F.coming && textStatus !== 'abort') {
+						F._error( 'ajax', jqXHR );
+
+					} else {
+						F.hideLoading();
+					}
+				},
+				success: function (data, textStatus) {
+					if (textStatus === 'success') {
+						coming.content = data;
+
+						F._afterLoad();
+					}
+				}
+			}));
+		},
+
+		_loadIframe: function() {
+			var coming = F.coming,
+				iframe = $(coming.tpl.iframe.replace(/\{rnd\}/g, new Date().getTime()))
+					.attr('scrolling', isTouch ? 'auto' : coming.iframe.scrolling)
+					.attr('src', coming.href);
+
+			// This helps IE
+			$(coming.wrap).bind('onReset', function () {
+				try {
+					$(this).find('iframe').hide().attr('src', '//about:blank').end().empty();
+				} catch (e) {}
+			});
+
+			if (coming.iframe.preload) {
+				F.showLoading();
+
+				iframe.one('load', function() {
+					$(this).data('ready', 1);
+
+					// iOS will lose scrolling if we resize
+					if (!isTouch) {
+						$(this).bind('load.fb', F.update);
+					}
+
+					// Without this trick:
+					//   - iframe won't scroll on iOS devices
+					//   - IE7 sometimes displays empty iframe
+					$(this).parents('.fancybox-wrap').width('100%').removeClass('fancybox-tmp').show();
+
+					F._afterLoad();
+				});
+			}
+
+			coming.content = iframe.appendTo( coming.inner );
+
+			if (!coming.iframe.preload) {
+				F._afterLoad();
+			}
+		},
+
+		_preloadImages: function() {
+			var group   = F.group,
+				current = F.current,
+				len     = group.length,
+				cnt     = current.preload ? Math.min(current.preload, len - 1) : 0,
+				item,
+				i;
+
+			for (i = 1; i <= cnt; i += 1) {
+				item = group[ (current.index + i ) % len ];
+
+				if (item.type === 'image' && item.href) {
+					new Image().src = item.href;
+				}
+			}
+		},
+
+		_afterLoad: function () {
+			var coming   = F.coming,
+				previous = F.current,
+				placeholder = 'fancybox-placeholder',
+				current,
+				content,
+				type,
+				scrolling,
+				href,
+				embed;
+
+			F.hideLoading();
+
+			if (!coming || F.isActive === false) {
+				return;
+			}
+
+			if (false === F.trigger('afterLoad', coming, previous)) {
+				coming.wrap.stop(true).trigger('onReset').remove();
+
+				F.coming = null;
+
+				return;
+			}
+
+			if (previous) {
+				F.trigger('beforeChange', previous);
+
+				previous.wrap.stop(true).removeClass('fancybox-opened')
+					.find('.fancybox-item, .fancybox-nav')
+					.remove();
+			}
+
+			F.unbindEvents();
+
+			current   = coming;
+			content   = coming.content;
+			type      = coming.type;
+			scrolling = coming.scrolling;
+
+			$.extend(F, {
+				wrap  : current.wrap,
+				skin  : current.skin,
+				outer : current.outer,
+				inner : current.inner,
+				current  : current,
+				previous : previous
+			});
+
+			href = current.href;
+
+			switch (type) {
+				case 'inline':
+				case 'ajax':
+				case 'html':
+					if (current.selector) {
+						content = $('<div>').html(content).find(current.selector);
+
+					} else if (isQuery(content)) {
+						if (!content.data(placeholder)) {
+							content.data(placeholder, $('<div class="' + placeholder + '"></div>').insertAfter( content ).hide() );
+						}
+
+						content = content.show().detach();
+
+						current.wrap.bind('onReset', function () {
+							if ($(this).find(content).length) {
+								content.hide().replaceAll( content.data(placeholder) ).data(placeholder, false);
+							}
+						});
+					}
+				break;
+
+				case 'image':
+					content = current.tpl.image.replace(/\{href\}/g, href);
+				break;
+
+				case 'swf':
+					content = '<object id="fancybox-swf" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" width="100%" height="100%"><param name="movie" value="' + href + '"></param>';
+					embed   = '';
+
+					$.each(current.swf, function(name, val) {
+						content += '<param name="' + name + '" value="' + val + '"></param>';
+						embed   += ' ' + name + '="' + val + '"';
+					});
+
+					content += '<embed src="' + href + '" type="application/x-shockwave-flash" width="100%" height="100%"' + embed + '></embed></object>';
+				break;
+			}
+
+			if (!(isQuery(content) && content.parent().is(current.inner))) {
+				current.inner.append( content );
+			}
+
+			// Give a chance for helpers or callbacks to update elements
+			F.trigger('beforeShow');
+
+			// Set scrolling before calculating dimensions
+			current.inner.css('overflow', scrolling === 'yes' ? 'scroll' : (scrolling === 'no' ? 'hidden' : scrolling));
+
+			// Set initial dimensions and start position
+			F._setDimension();
+
+			F.reposition();
+
+			F.isOpen = false;
+			F.coming = null;
+
+			F.bindEvents();
+
+			if (!F.isOpened) {
+				$('.fancybox-wrap').not( current.wrap ).stop(true).trigger('onReset').remove();
+
+			} else if (previous.prevMethod) {
+				F.transitions[ previous.prevMethod ]();
+			}
+
+			F.transitions[ F.isOpened ? current.nextMethod : current.openMethod ]();
+
+			F._preloadImages();
+		},
+
+		_setDimension: function () {
+			var viewport   = F.getViewport(),
+				steps      = 0,
+				canShrink  = false,
+				canExpand  = false,
+				wrap       = F.wrap,
+				skin       = F.skin,
+				inner      = F.inner,
+				current    = F.current,
+				width      = current.width,
+				height     = current.height,
+				minWidth   = current.minWidth,
+				minHeight  = current.minHeight,
+				maxWidth   = current.maxWidth,
+				maxHeight  = current.maxHeight,
+				scrolling  = current.scrolling,
+				scrollOut  = current.scrollOutside ? current.scrollbarWidth : 0,
+				margin     = current.margin,
+				wMargin    = getScalar(margin[1] + margin[3]),
+				hMargin    = getScalar(margin[0] + margin[2]),
+				wPadding,
+				hPadding,
+				wSpace,
+				hSpace,
+				origWidth,
+				origHeight,
+				origMaxWidth,
+				origMaxHeight,
+				ratio,
+				width_,
+				height_,
+				maxWidth_,
+				maxHeight_,
+				iframe,
+				body;
+
+			// Reset dimensions so we could re-check actual size
+			wrap.add(skin).add(inner).width('auto').height('auto').removeClass('fancybox-tmp');
+
+			wPadding = getScalar(skin.outerWidth(true)  - skin.width());
+			hPadding = getScalar(skin.outerHeight(true) - skin.height());
+
+			// Any space between content and viewport (margin, padding, border, title)
+			wSpace = wMargin + wPadding;
+			hSpace = hMargin + hPadding;
+
+			origWidth  = isPercentage(width)  ? (viewport.w - wSpace) * getScalar(width)  / 100 : width;
+			origHeight = isPercentage(height) ? (viewport.h - hSpace) * getScalar(height) / 100 : height;
+
+			if (current.type === 'iframe') {
+				iframe = current.content;
+
+				if (current.autoHeight && iframe.data('ready') === 1) {
+					try {
+						if (iframe[0].contentWindow.document.location) {
+							inner.width( origWidth ).height(9999);
+
+							body = iframe.contents().find('body');
+
+							if (scrollOut) {
+								body.css('overflow-x', 'hidden');
+							}
+
+							origHeight = body.outerHeight(true);
+						}
+
+					} catch (e) {}
+				}
+
+			} else if (current.autoWidth || current.autoHeight) {
+				inner.addClass( 'fancybox-tmp' );
+
+				// Set width or height in case we need to calculate only one dimension
+				if (!current.autoWidth) {
+					inner.width( origWidth );
+				}
+
+				if (!current.autoHeight) {
+					inner.height( origHeight );
+				}
+
+				if (current.autoWidth) {
+					origWidth = inner.width();
+				}
+
+				if (current.autoHeight) {
+					origHeight = inner.height();
+				}
+
+				inner.removeClass( 'fancybox-tmp' );
+			}
+
+			width  = getScalar( origWidth );
+			height = getScalar( origHeight );
+
+			ratio  = origWidth / origHeight;
+
+			// Calculations for the content
+			minWidth  = getScalar(isPercentage(minWidth) ? getScalar(minWidth, 'w') - wSpace : minWidth);
+			maxWidth  = getScalar(isPercentage(maxWidth) ? getScalar(maxWidth, 'w') - wSpace : maxWidth);
+
+			minHeight = getScalar(isPercentage(minHeight) ? getScalar(minHeight, 'h') - hSpace : minHeight);
+			maxHeight = getScalar(isPercentage(maxHeight) ? getScalar(maxHeight, 'h') - hSpace : maxHeight);
+
+			// These will be used to determine if wrap can fit in the viewport
+			origMaxWidth  = maxWidth;
+			origMaxHeight = maxHeight;
+
+			if (current.fitToView) {
+				maxWidth  = Math.min(viewport.w - wSpace, maxWidth);
+				maxHeight = Math.min(viewport.h - hSpace, maxHeight);
+			}
+
+			maxWidth_  = viewport.w - wMargin;
+			maxHeight_ = viewport.h - hMargin;
+
+			if (current.aspectRatio) {
+				if (width > maxWidth) {
+					width  = maxWidth;
+					height = getScalar(width / ratio);
+				}
+
+				if (height > maxHeight) {
+					height = maxHeight;
+					width  = getScalar(height * ratio);
+				}
+
+				if (width < minWidth) {
+					width  = minWidth;
+					height = getScalar(width / ratio);
+				}
+
+				if (height < minHeight) {
+					height = minHeight;
+					width  = getScalar(height * ratio);
+				}
+
+			} else {
+				width = Math.max(minWidth, Math.min(width, maxWidth));
+
+				if (current.autoHeight && current.type !== 'iframe') {
+					inner.width( width );
+
+					height = inner.height();
+				}
+
+				height = Math.max(minHeight, Math.min(height, maxHeight));
+			}
+
+			// Try to fit inside viewport (including the title)
+			if (current.fitToView) {
+				inner.width( width ).height( height );
+
+				wrap.width( width + wPadding );
+
+				// Real wrap dimensions
+				width_  = wrap.width();
+				height_ = wrap.height();
+
+				if (current.aspectRatio) {
+					while ((width_ > maxWidth_ || height_ > maxHeight_) && width > minWidth && height > minHeight) {
+						if (steps++ > 19) {
+							break;
+						}
+
+						height = Math.max(minHeight, Math.min(maxHeight, height - 10));
+						width  = getScalar(height * ratio);
+
+						if (width < minWidth) {
+							width  = minWidth;
+							height = getScalar(width / ratio);
+						}
+
+						if (width > maxWidth) {
+							width  = maxWidth;
+							height = getScalar(width / ratio);
+						}
+
+						inner.width( width ).height( height );
+
+						wrap.width( width + wPadding );
+
+						width_  = wrap.width();
+						height_ = wrap.height();
+					}
+
+				} else {
+					width  = Math.max(minWidth,  Math.min(width,  width  - (width_  - maxWidth_)));
+					height = Math.max(minHeight, Math.min(height, height - (height_ - maxHeight_)));
+				}
+			}
+
+			if (scrollOut && scrolling === 'auto' && height < origHeight && (width + wPadding + scrollOut) < maxWidth_) {
+				width += scrollOut;
+			}
+
+			inner.width( width ).height( height );
+
+			wrap.width( width + wPadding );
+
+			width_  = wrap.width();
+			height_ = wrap.height();
+
+			canShrink = (width_ > maxWidth_ || height_ > maxHeight_) && width > minWidth && height > minHeight;
+			canExpand = current.aspectRatio ? (width < origMaxWidth && height < origMaxHeight && width < origWidth && height < origHeight) : ((width < origMaxWidth || height < origMaxHeight) && (width < origWidth || height < origHeight));
+
+			$.extend(current, {
+				dim : {
+					width	: getValue( width_ ),
+					height	: getValue( height_ )
+				},
+				origWidth  : origWidth,
+				origHeight : origHeight,
+				canShrink  : canShrink,
+				canExpand  : canExpand,
+				wPadding   : wPadding,
+				hPadding   : hPadding,
+				wrapSpace  : height_ - skin.outerHeight(true),
+				skinSpace  : skin.height() - height
+			});
+
+			if (!iframe && current.autoHeight && height > minHeight && height < maxHeight && !canExpand) {
+				inner.height('auto');
+			}
+		},
+
+		_getPosition: function (onlyAbsolute) {
+			var current  = F.current,
+				viewport = F.getViewport(),
+				margin   = current.margin,
+				width    = F.wrap.width()  + margin[1] + margin[3],
+				height   = F.wrap.height() + margin[0] + margin[2],
+				rez      = {
+					position: 'absolute',
+					top  : margin[0],
+					left : margin[3]
+				};
+
+			if (current.autoCenter && current.fixed && !onlyAbsolute && height <= viewport.h && width <= viewport.w) {
+				rez.position = 'fixed';
+
+			} else if (!current.locked) {
+				rez.top  += viewport.y;
+				rez.left += viewport.x;
+			}
+
+			rez.top  = getValue(Math.max(rez.top,  rez.top  + ((viewport.h - height) * current.topRatio)));
+			rez.left = getValue(Math.max(rez.left, rez.left + ((viewport.w - width)  * current.leftRatio)));
+
+			return rez;
+		},
+
+		_afterZoomIn: function () {
+			var current = F.current;
+
+			if (!current) {
+				return;
+			}
+
+			F.isOpen = F.isOpened = true;
+
+			F.wrap.css('overflow', 'visible').addClass('fancybox-opened').hide().show(0);
+
+			F.update();
+
+			// Assign a click event
+			if ( current.closeClick || (current.nextClick && F.group.length > 1) ) {
+				F.inner.css('cursor', 'pointer').bind('click.fb', function(e) {
+					if (!$(e.target).is('a') && !$(e.target).parent().is('a')) {
+						e.preventDefault();
+
+						F[ current.closeClick ? 'close' : 'next' ]();
+					}
+				});
+			}
+
+			// Create a close button
+			if (current.closeBtn) {
+				$(current.tpl.closeBtn).appendTo(F.skin).bind('click.fb', function(e) {
+					e.preventDefault();
+
+					F.close();
+				});
+			}
+
+			// Create navigation arrows
+			if (current.arrows && F.group.length > 1) {
+				if (current.loop || current.index > 0) {
+					$(current.tpl.prev).appendTo(F.outer).bind('click.fb', F.prev);
+				}
+
+				if (current.loop || current.index < F.group.length - 1) {
+					$(current.tpl.next).appendTo(F.outer).bind('click.fb', F.next);
+				}
+			}
+
+			F.trigger('afterShow');
+
+			// Stop the slideshow if this is the last item
+			if (!current.loop && current.index === current.group.length - 1) {
+
+				F.play( false );
+
+			} else if (F.opts.autoPlay && !F.player.isActive) {
+				F.opts.autoPlay = false;
+
+				F.play(true);
+			}
+		},
+
+		_afterZoomOut: function ( obj ) {
+			obj = obj || F.current;
+
+			$('.fancybox-wrap').trigger('onReset').remove();
+
+			$.extend(F, {
+				group  : {},
+				opts   : {},
+				router : false,
+				current   : null,
+				isActive  : false,
+				isOpened  : false,
+				isOpen    : false,
+				isClosing : false,
+				wrap   : null,
+				skin   : null,
+				outer  : null,
+				inner  : null
+			});
+
+			F.trigger('afterClose', obj);
+		}
+	});
+
+	/*
+	 *	Default transitions
+	 */
+
+	F.transitions = {
+		getOrigPosition: function () {
+			var current  = F.current,
+				element  = current.element,
+				orig     = current.orig,
+				pos      = {},
+				width    = 50,
+				height   = 50,
+				hPadding = current.hPadding,
+				wPadding = current.wPadding,
+				viewport = F.getViewport();
+
+			if (!orig && current.isDom && element.is(':visible')) {
+				orig = element.find('img:first');
+
+				if (!orig.length) {
+					orig = element;
+				}
+			}
+
+			if (isQuery(orig)) {
+				pos = orig.offset();
+
+				if (orig.is('img')) {
+					width  = orig.outerWidth();
+					height = orig.outerHeight();
+				}
+
+			} else {
+				pos.top  = viewport.y + (viewport.h - height) * current.topRatio;
+				pos.left = viewport.x + (viewport.w - width)  * current.leftRatio;
+			}
+
+			if (F.wrap.css('position') === 'fixed' || current.locked) {
+				pos.top  -= viewport.y;
+				pos.left -= viewport.x;
+			}
+
+			pos = {
+				top     : getValue(pos.top  - hPadding * current.topRatio),
+				left    : getValue(pos.left - wPadding * current.leftRatio),
+				width   : getValue(width  + wPadding),
+				height  : getValue(height + hPadding)
+			};
+
+			return pos;
+		},
+
+		step: function (now, fx) {
+			var ratio,
+				padding,
+				value,
+				prop       = fx.prop,
+				current    = F.current,
+				wrapSpace  = current.wrapSpace,
+				skinSpace  = current.skinSpace;
+
+			if (prop === 'width' || prop === 'height') {
+				ratio = fx.end === fx.start ? 1 : (now - fx.start) / (fx.end - fx.start);
+
+				if (F.isClosing) {
+					ratio = 1 - ratio;
+				}
+
+				padding = prop === 'width' ? current.wPadding : current.hPadding;
+				value   = now - padding;
+
+				F.skin[ prop ](  getScalar( prop === 'width' ?  value : value - (wrapSpace * ratio) ) );
+				F.inner[ prop ]( getScalar( prop === 'width' ?  value : value - (wrapSpace * ratio) - (skinSpace * ratio) ) );
+			}
+		},
+
+		zoomIn: function () {
+			var current  = F.current,
+				startPos = current.pos,
+				effect   = current.openEffect,
+				elastic  = effect === 'elastic',
+				endPos   = $.extend({opacity : 1}, startPos);
+
+			// Remove "position" property that breaks older IE
+			delete endPos.position;
+
+			if (elastic) {
+				startPos = this.getOrigPosition();
+
+				if (current.openOpacity) {
+					startPos.opacity = 0.1;
+				}
+
+			} else if (effect === 'fade') {
+				startPos.opacity = 0.1;
+			}
+
+			F.wrap.css(startPos).animate(endPos, {
+				duration : effect === 'none' ? 0 : current.openSpeed,
+				easing   : current.openEasing,
+				step     : elastic ? this.step : null,
+				complete : F._afterZoomIn
+			});
+		},
+
+		zoomOut: function () {
+			var current  = F.current,
+				effect   = current.closeEffect,
+				elastic  = effect === 'elastic',
+				endPos   = {opacity : 0.1};
+
+			if (elastic) {
+				endPos = this.getOrigPosition();
+
+				if (current.closeOpacity) {
+					endPos.opacity = 0.1;
+				}
+			}
+
+			F.wrap.animate(endPos, {
+				duration : effect === 'none' ? 0 : current.closeSpeed,
+				easing   : current.closeEasing,
+				step     : elastic ? this.step : null,
+				complete : F._afterZoomOut
+			});
+		},
+
+		changeIn: function () {
+			var current   = F.current,
+				effect    = current.nextEffect,
+				startPos  = current.pos,
+				endPos    = { opacity : 1 },
+				direction = F.direction,
+				distance  = 200,
+				field;
+
+			startPos.opacity = 0.1;
+
+			if (effect === 'elastic') {
+				field = direction === 'down' || direction === 'up' ? 'top' : 'left';
+
+				if (direction === 'down' || direction === 'right') {
+					startPos[ field ] = getValue(getScalar(startPos[ field ]) - distance);
+					endPos[ field ]   = '+=' + distance + 'px';
+
+				} else {
+					startPos[ field ] = getValue(getScalar(startPos[ field ]) + distance);
+					endPos[ field ]   = '-=' + distance + 'px';
+				}
+			}
+
+			// Workaround for http://bugs.jquery.com/ticket/12273
+			if (effect === 'none') {
+				F._afterZoomIn();
+
+			} else {
+				F.wrap.css(startPos).animate(endPos, {
+					duration : current.nextSpeed,
+					easing   : current.nextEasing,
+					complete : F._afterZoomIn
+				});
+			}
+		},
+
+		changeOut: function () {
+			var previous  = F.previous,
+				effect    = previous.prevEffect,
+				endPos    = { opacity : 0.1 },
+				direction = F.direction,
+				distance  = 200;
+
+			if (effect === 'elastic') {
+				endPos[ direction === 'down' || direction === 'up' ? 'top' : 'left' ] = ( direction === 'up' || direction === 'left' ? '-' : '+' ) + '=' + distance + 'px';
+			}
+
+			previous.wrap.animate(endPos, {
+				duration : effect === 'none' ? 0 : previous.prevSpeed,
+				easing   : previous.prevEasing,
+				complete : function () {
+					$(this).trigger('onReset').remove();
+				}
+			});
+		}
+	};
+
+	/*
+	 *	Overlay helper
+	 */
+
+	F.helpers.overlay = {
+		defaults : {
+			closeClick : true,      // if true, fancyBox will be closed when user clicks on the overlay
+			speedOut   : 200,       // duration of fadeOut animation
+			showEarly  : true,      // indicates if should be opened immediately or wait until the content is ready
+			css        : {},        // custom CSS properties
+			locked     : !isTouch,  // if true, the content will be locked into overlay
+			fixed      : true       // if false, the overlay CSS position property will not be set to "fixed"
+		},
+
+		overlay : null,      // current handle
+		fixed   : false,     // indicates if the overlay has position "fixed"
+		el      : $('html'), // element that contains "the lock"
+
+		// Public methods
+		create : function(opts) {
+			var parent;
+
+			opts = $.extend({}, this.defaults, opts);
+
+			if (this.overlay) {
+				this.close();
+			}
+
+			parent = F.coming ? F.coming.parent : opts.parent;
+
+			this.overlay = $('<div class="fancybox-overlay"></div>').appendTo( parent && parent.length ? parent : 'body' );
+			this.fixed   = false;
+
+			if (opts.fixed && F.defaults.fixed) {
+				this.overlay.addClass('fancybox-overlay-fixed');
+
+				this.fixed = true;
+			}
+		},
+
+		open : function(opts) {
+			var that = this;
+
+			opts = $.extend({}, this.defaults, opts);
+
+			if (this.overlay) {
+				this.overlay.unbind('.overlay').width('auto').height('auto');
+
+			} else {
+				this.create(opts);
+			}
+
+			if (!this.fixed) {
+				W.bind('resize.overlay', $.proxy( this.update, this) );
+
+				this.update();
+			}
+
+			if (opts.closeClick) {
+				this.overlay.bind('click.overlay', function(e) {
+					if ($(e.target).hasClass('fancybox-overlay')) {
+						if (F.isActive) {
+							F.close();
+						} else {
+							that.close();
+						}
+
+						return false;
+					}
+				});
+			}
+
+			this.overlay.css( opts.css ).show();
+		},
+
+		close : function() {
+			W.unbind('resize.overlay');
+
+			if (this.el.hasClass('fancybox-lock')) {
+				$('.fancybox-margin').removeClass('fancybox-margin');
+
+				this.el.removeClass('fancybox-lock');
+
+				W.scrollTop( this.scrollV ).scrollLeft( this.scrollH );
+			}
+
+			$('.fancybox-overlay').remove().hide();
+
+			$.extend(this, {
+				overlay : null,
+				fixed   : false
+			});
+		},
+
+		// Private, callbacks
+
+		update : function () {
+			var width = '100%', offsetWidth;
+
+			// Reset width/height so it will not mess
+			this.overlay.width(width).height('100%');
+
+			// jQuery does not return reliable result for IE
+			if (IE) {
+				offsetWidth = Math.max(document.documentElement.offsetWidth, document.body.offsetWidth);
+
+				if (D.width() > offsetWidth) {
+					width = D.width();
+				}
+
+			} else if (D.width() > W.width()) {
+				width = D.width();
+			}
+
+			this.overlay.width(width).height(D.height());
+		},
+
+		// This is where we can manipulate DOM, because later it would cause iframes to reload
+		onReady : function (opts, obj) {
+			var overlay = this.overlay;
+
+			$('.fancybox-overlay').stop(true, true);
+
+			if (!overlay) {
+				this.create(opts);
+			}
+
+			if (opts.locked && this.fixed && obj.fixed) {
+				obj.locked = this.overlay.append( obj.wrap );
+				obj.fixed  = false;
+			}
+
+			if (opts.showEarly === true) {
+				this.beforeShow.apply(this, arguments);
+			}
+		},
+
+		beforeShow : function(opts, obj) {
+			if (obj.locked && !this.el.hasClass('fancybox-lock')) {
+				if (this.fixPosition !== false) {
+					$('*').filter(function(){
+						return ($(this).css('position') === 'fixed' && !$(this).hasClass("fancybox-overlay") && !$(this).hasClass("fancybox-wrap") );
+					}).addClass('fancybox-margin');
+				}
+
+				this.el.addClass('fancybox-margin');
+
+				this.scrollV = W.scrollTop();
+				this.scrollH = W.scrollLeft();
+
+				this.el.addClass('fancybox-lock');
+
+				W.scrollTop( this.scrollV ).scrollLeft( this.scrollH );
+			}
+
+			this.open(opts);
+		},
+
+		onUpdate : function() {
+			if (!this.fixed) {
+				this.update();
+			}
+		},
+
+		afterClose: function (opts) {
+			// Remove overlay if exists and fancyBox is not opening
+			// (e.g., it is not being open using afterClose callback)
+			if (this.overlay && !F.coming) {
+				this.overlay.fadeOut(opts.speedOut, $.proxy( this.close, this ));
+			}
+		}
+	};
+
+	/*
+	 *	Title helper
+	 */
+
+	F.helpers.title = {
+		defaults : {
+			type     : 'float', // 'float', 'inside', 'outside' or 'over',
+			position : 'bottom' // 'top' or 'bottom'
+		},
+
+		beforeShow: function (opts) {
+			var current = F.current,
+				text    = current.title,
+				type    = opts.type,
+				title,
+				target;
+
+			if ($.isFunction(text)) {
+				text = text.call(current.element, current);
+			}
+
+			if (!isString(text) || $.trim(text) === '') {
+				return;
+			}
+
+			title = $('<div class="fancybox-title fancybox-title-' + type + '-wrap">' + text + '</div>');
+
+			switch (type) {
+				case 'inside':
+					target = F.skin;
+				break;
+
+				case 'outside':
+					target = F.wrap;
+				break;
+
+				case 'over':
+					target = F.inner;
+				break;
+
+				default: // 'float'
+					target = F.skin;
+
+					title.appendTo('body');
+
+					if (IE) {
+						title.width( title.width() );
+					}
+
+					title.wrapInner('<span class="child"></span>');
+
+					//Increase bottom margin so this title will also fit into viewport
+					F.current.margin[2] += Math.abs( getScalar(title.css('margin-bottom')) );
+				break;
+			}
+
+			title[ (opts.position === 'top' ? 'prependTo'  : 'appendTo') ](target);
+		}
+	};
+
+	// jQuery plugin initialization
+	$.fn.fancybox = function (options) {
+		var index,
+			that     = $(this),
+			selector = this.selector || '',
+			run      = function(e) {
+				var what = $(this).blur(), idx = index, relType, relVal;
+
+				if (!(e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) && !what.is('.fancybox-wrap')) {
+					relType = options.groupAttr || 'data-fancybox-group';
+					relVal  = what.attr(relType);
+
+					if (!relVal) {
+						relType = 'rel';
+						relVal  = what.get(0)[ relType ];
+					}
+
+					if (relVal && relVal !== '' && relVal !== 'nofollow') {
+						what = selector.length ? $(selector) : that;
+						what = what.filter('[' + relType + '="' + relVal + '"]');
+						idx  = what.index(this);
+					}
+
+					options.index = idx;
+
+					// Stop an event from bubbling if everything is fine
+					if (F.open(what, options) !== false) {
+						e.preventDefault();
+					}
 				}
 			};
 
-			factory.setValue = function(digits) {
-				factory.setTime(digits);
-			};
+		options = options || {};
+		index   = options.index || 0;
 
-			factory.setCounter = function(digits) {
-				factory.setTime(digits);
-			};
+		if (!selector || options.live === false) {
+			that.unbind('click.fb-start').bind('click.fb-start', run);
 
-			this.base(factory, options);
+		} else {
+			D.undelegate(selector, 'click.fb-start').delegate(selector + ":not('.fancybox-item, .fancybox-nav')", 'click.fb-start', run);
+		}
+
+		this.filter('[data-fancybox-start=1]').trigger('click');
+
+		return this;
+	};
+
+	// Tests that need a body at doc ready
+	D.ready(function() {
+		var w1, w2;
+
+		if ( $.scrollbarWidth === undefined ) {
+			// http://benalman.com/projects/jquery-misc-plugins/#scrollbarwidth
+			$.scrollbarWidth = function() {
+				var parent = $('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body'),
+					child  = parent.children(),
+					width  = child.innerWidth() - child.height( 99 ).innerWidth();
+
+				parent.remove();
+
+				return width;
+			};
+		}
+
+		if ( $.support.fixedPosition === undefined ) {
+			$.support.fixedPosition = (function() {
+				var elem  = $('<div style="position:fixed;top:20px;"></div>').appendTo('body'),
+					fixed = ( elem[0].offsetTop === 20 || elem[0].offsetTop === 15 );
+
+				elem.remove();
+
+				return fixed;
+			}());
+		}
+
+		$.extend(F.defaults, {
+			scrollbarWidth : $.scrollbarWidth(),
+			fixed  : $.support.fixedPosition,
+			parent : $('body')
+		});
+
+		//Get real width of page scroll-bar
+		w1 = $(window).width();
+
+		H.addClass('fancybox-lock-test');
+
+		w2 = $(window).width();
+
+		H.removeClass('fancybox-lock-test');
+
+		$("<style type='text/css'>.fancybox-margin{margin-right:" + (w2 - w1) + "px;}</style>").appendTo("head");
+	});
+
+}(window, document, jQuery));
+
+/*! fancyBox v2.1.5 fancyapps.com | fancyapps.com/fancybox/#license */
+(function(s,H,f,w){var K=f("html"),q=f(s),p=f(H),b=f.fancybox=function(){b.open.apply(this,arguments)},J=navigator.userAgent.match(/msie/i),C=null,t=H.createTouch!==w,u=function(a){return a&&a.hasOwnProperty&&a instanceof f},r=function(a){return a&&"string"===f.type(a)},F=function(a){return r(a)&&0<a.indexOf("%")},m=function(a,d){var e=parseInt(a,10)||0;d&&F(a)&&(e*=b.getViewport()[d]/100);return Math.ceil(e)},x=function(a,b){return m(a,b)+"px"};f.extend(b,{version:"2.1.5",defaults:{padding:15,margin:20,
+width:800,height:600,minWidth:100,minHeight:100,maxWidth:9999,maxHeight:9999,pixelRatio:1,autoSize:!0,autoHeight:!1,autoWidth:!1,autoResize:!0,autoCenter:!t,fitToView:!0,aspectRatio:!1,topRatio:0.5,leftRatio:0.5,scrolling:"auto",wrapCSS:"",arrows:!0,closeBtn:!0,closeClick:!1,nextClick:!1,mouseWheel:!0,autoPlay:!1,playSpeed:3E3,preload:3,modal:!1,loop:!0,ajax:{dataType:"html",headers:{"X-fancyBox":!0}},iframe:{scrolling:"auto",preload:!0},swf:{wmode:"transparent",allowfullscreen:"true",allowscriptaccess:"always"},
+keys:{next:{13:"left",34:"up",39:"left",40:"up"},prev:{8:"right",33:"down",37:"right",38:"down"},close:[27],play:[32],toggle:[70]},direction:{next:"left",prev:"right"},scrollOutside:!0,index:0,type:null,href:null,content:null,title:null,tpl:{wrap:'<div class="fancybox-wrap" tabIndex="-1"><div class="fancybox-skin"><div class="fancybox-outer"><div class="fancybox-inner"></div></div></div></div>',image:'<img class="fancybox-image" src="{href}" alt="" />',iframe:'<iframe id="fancybox-frame{rnd}" name="fancybox-frame{rnd}" class="fancybox-iframe" frameborder="0" vspace="0" hspace="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen'+
+(J?' allowtransparency="true"':"")+"></iframe>",error:'<p class="fancybox-error">The requested content cannot be loaded.<br/>Please try again later.</p>',closeBtn:'<a title="Close" class="fancybox-item fancybox-close" href="javascript:;"></a>',next:'<a title="Next" class="fancybox-nav fancybox-next" href="javascript:;"><span></span></a>',prev:'<a title="Previous" class="fancybox-nav fancybox-prev" href="javascript:;"><span></span></a>'},openEffect:"fade",openSpeed:250,openEasing:"swing",openOpacity:!0,
+openMethod:"zoomIn",closeEffect:"fade",closeSpeed:250,closeEasing:"swing",closeOpacity:!0,closeMethod:"zoomOut",nextEffect:"elastic",nextSpeed:250,nextEasing:"swing",nextMethod:"changeIn",prevEffect:"elastic",prevSpeed:250,prevEasing:"swing",prevMethod:"changeOut",helpers:{overlay:!0,title:!0},onCancel:f.noop,beforeLoad:f.noop,afterLoad:f.noop,beforeShow:f.noop,afterShow:f.noop,beforeChange:f.noop,beforeClose:f.noop,afterClose:f.noop},group:{},opts:{},previous:null,coming:null,current:null,isActive:!1,
+isOpen:!1,isOpened:!1,wrap:null,skin:null,outer:null,inner:null,player:{timer:null,isActive:!1},ajaxLoad:null,imgPreload:null,transitions:{},helpers:{},open:function(a,d){if(a&&(f.isPlainObject(d)||(d={}),!1!==b.close(!0)))return f.isArray(a)||(a=u(a)?f(a).get():[a]),f.each(a,function(e,c){var l={},g,h,k,n,m;"object"===f.type(c)&&(c.nodeType&&(c=f(c)),u(c)?(l={href:c.data("fancybox-href")||c.attr("href"),title:f("<div/>").text(c.data("fancybox-title")||c.attr("title")).html(),isDom:!0,element:c},
+f.metadata&&f.extend(!0,l,c.metadata())):l=c);g=d.href||l.href||(r(c)?c:null);h=d.title!==w?d.title:l.title||"";n=(k=d.content||l.content)?"html":d.type||l.type;!n&&l.isDom&&(n=c.data("fancybox-type"),n||(n=(n=c.prop("class").match(/fancybox\.(\w+)/))?n[1]:null));r(g)&&(n||(b.isImage(g)?n="image":b.isSWF(g)?n="swf":"#"===g.charAt(0)?n="inline":r(c)&&(n="html",k=c)),"ajax"===n&&(m=g.split(/\s+/,2),g=m.shift(),m=m.shift()));k||("inline"===n?g?k=f(r(g)?g.replace(/.*(?=#[^\s]+$)/,""):g):l.isDom&&(k=c):
+"html"===n?k=g:n||g||!l.isDom||(n="inline",k=c));f.extend(l,{href:g,type:n,content:k,title:h,selector:m});a[e]=l}),b.opts=f.extend(!0,{},b.defaults,d),d.keys!==w&&(b.opts.keys=d.keys?f.extend({},b.defaults.keys,d.keys):!1),b.group=a,b._start(b.opts.index)},cancel:function(){var a=b.coming;a&&!1===b.trigger("onCancel")||(b.hideLoading(),a&&(b.ajaxLoad&&b.ajaxLoad.abort(),b.ajaxLoad=null,b.imgPreload&&(b.imgPreload.onload=b.imgPreload.onerror=null),a.wrap&&a.wrap.stop(!0,!0).trigger("onReset").remove(),
+b.coming=null,b.current||b._afterZoomOut(a)))},close:function(a){b.cancel();!1!==b.trigger("beforeClose")&&(b.unbindEvents(),b.isActive&&(b.isOpen&&!0!==a?(b.isOpen=b.isOpened=!1,b.isClosing=!0,f(".fancybox-item, .fancybox-nav").remove(),b.wrap.stop(!0,!0).removeClass("fancybox-opened"),b.transitions[b.current.closeMethod]()):(f(".fancybox-wrap").stop(!0).trigger("onReset").remove(),b._afterZoomOut())))},play:function(a){var d=function(){clearTimeout(b.player.timer)},e=function(){d();b.current&&b.player.isActive&&
+(b.player.timer=setTimeout(b.next,b.current.playSpeed))},c=function(){d();p.unbind(".player");b.player.isActive=!1;b.trigger("onPlayEnd")};!0===a||!b.player.isActive&&!1!==a?b.current&&(b.current.loop||b.current.index<b.group.length-1)&&(b.player.isActive=!0,p.bind({"onCancel.player beforeClose.player":c,"onUpdate.player":e,"beforeLoad.player":d}),e(),b.trigger("onPlayStart")):c()},next:function(a){var d=b.current;d&&(r(a)||(a=d.direction.next),b.jumpto(d.index+1,a,"next"))},prev:function(a){var d=
+b.current;d&&(r(a)||(a=d.direction.prev),b.jumpto(d.index-1,a,"prev"))},jumpto:function(a,d,e){var c=b.current;c&&(a=m(a),b.direction=d||c.direction[a>=c.index?"next":"prev"],b.router=e||"jumpto",c.loop&&(0>a&&(a=c.group.length+a%c.group.length),a%=c.group.length),c.group[a]!==w&&(b.cancel(),b._start(a)))},reposition:function(a,d){var e=b.current,c=e?e.wrap:null,l;c&&(l=b._getPosition(d),a&&"scroll"===a.type?(delete l.position,c.stop(!0,!0).animate(l,200)):(c.css(l),e.pos=f.extend({},e.dim,l)))},
+update:function(a){var d=a&&a.originalEvent&&a.originalEvent.type,e=!d||"orientationchange"===d;e&&(clearTimeout(C),C=null);b.isOpen&&!C&&(C=setTimeout(function(){var c=b.current;c&&!b.isClosing&&(b.wrap.removeClass("fancybox-tmp"),(e||"load"===d||"resize"===d&&c.autoResize)&&b._setDimension(),"scroll"===d&&c.canShrink||b.reposition(a),b.trigger("onUpdate"),C=null)},e&&!t?0:300))},toggle:function(a){b.isOpen&&(b.current.fitToView="boolean"===f.type(a)?a:!b.current.fitToView,t&&(b.wrap.removeAttr("style").addClass("fancybox-tmp"),
+b.trigger("onUpdate")),b.update())},hideLoading:function(){p.unbind(".loading");f("#fancybox-loading").remove()},showLoading:function(){var a,d;b.hideLoading();a=f('<div id="fancybox-loading"><div></div></div>').click(b.cancel).appendTo("body");p.bind("keydown.loading",function(a){27===(a.which||a.keyCode)&&(a.preventDefault(),b.cancel())});b.defaults.fixed||(d=b.getViewport(),a.css({position:"absolute",top:0.5*d.h+d.y,left:0.5*d.w+d.x}));b.trigger("onLoading")},getViewport:function(){var a=b.current&&
+b.current.locked||!1,d={x:q.scrollLeft(),y:q.scrollTop()};a&&a.length?(d.w=a[0].clientWidth,d.h=a[0].clientHeight):(d.w=t&&s.innerWidth?s.innerWidth:q.width(),d.h=t&&s.innerHeight?s.innerHeight:q.height());return d},unbindEvents:function(){b.wrap&&u(b.wrap)&&b.wrap.unbind(".fb");p.unbind(".fb");q.unbind(".fb")},bindEvents:function(){var a=b.current,d;a&&(q.bind("orientationchange.fb"+(t?"":" resize.fb")+(a.autoCenter&&!a.locked?" scroll.fb":""),b.update),(d=a.keys)&&p.bind("keydown.fb",function(e){var c=
+e.which||e.keyCode,l=e.target||e.srcElement;if(27===c&&b.coming)return!1;e.ctrlKey||e.altKey||e.shiftKey||e.metaKey||l&&(l.type||f(l).is("[contenteditable]"))||f.each(d,function(d,l){if(1<a.group.length&&l[c]!==w)return b[d](l[c]),e.preventDefault(),!1;if(-1<f.inArray(c,l))return b[d](),e.preventDefault(),!1})}),f.fn.mousewheel&&a.mouseWheel&&b.wrap.bind("mousewheel.fb",function(d,c,l,g){for(var h=f(d.target||null),k=!1;h.length&&!(k||h.is(".fancybox-skin")||h.is(".fancybox-wrap"));)k=h[0]&&!(h[0].style.overflow&&
+"hidden"===h[0].style.overflow)&&(h[0].clientWidth&&h[0].scrollWidth>h[0].clientWidth||h[0].clientHeight&&h[0].scrollHeight>h[0].clientHeight),h=f(h).parent();0!==c&&!k&&1<b.group.length&&!a.canShrink&&(0<g||0<l?b.prev(0<g?"down":"left"):(0>g||0>l)&&b.next(0>g?"up":"right"),d.preventDefault())}))},trigger:function(a,d){var e,c=d||b.coming||b.current;if(c){f.isFunction(c[a])&&(e=c[a].apply(c,Array.prototype.slice.call(arguments,1)));if(!1===e)return!1;c.helpers&&f.each(c.helpers,function(d,e){if(e&&
+b.helpers[d]&&f.isFunction(b.helpers[d][a]))b.helpers[d][a](f.extend(!0,{},b.helpers[d].defaults,e),c)})}p.trigger(a)},isImage:function(a){return r(a)&&a.match(/(^data:image\/.*,)|(\.(jp(e|g|eg)|gif|png|bmp|webp|svg)((\?|#).*)?$)/i)},isSWF:function(a){return r(a)&&a.match(/\.(swf)((\?|#).*)?$/i)},_start:function(a){var d={},e,c;a=m(a);e=b.group[a]||null;if(!e)return!1;d=f.extend(!0,{},b.opts,e);e=d.margin;c=d.padding;"number"===f.type(e)&&(d.margin=[e,e,e,e]);"number"===f.type(c)&&(d.padding=[c,c,
+c,c]);d.modal&&f.extend(!0,d,{closeBtn:!1,closeClick:!1,nextClick:!1,arrows:!1,mouseWheel:!1,keys:null,helpers:{overlay:{closeClick:!1}}});d.autoSize&&(d.autoWidth=d.autoHeight=!0);"auto"===d.width&&(d.autoWidth=!0);"auto"===d.height&&(d.autoHeight=!0);d.group=b.group;d.index=a;b.coming=d;if(!1===b.trigger("beforeLoad"))b.coming=null;else{c=d.type;e=d.href;if(!c)return b.coming=null,b.current&&b.router&&"jumpto"!==b.router?(b.current.index=a,b[b.router](b.direction)):!1;b.isActive=!0;if("image"===
+c||"swf"===c)d.autoHeight=d.autoWidth=!1,d.scrolling="visible";"image"===c&&(d.aspectRatio=!0);"iframe"===c&&t&&(d.scrolling="scroll");d.wrap=f(d.tpl.wrap).addClass("fancybox-"+(t?"mobile":"desktop")+" fancybox-type-"+c+" fancybox-tmp "+d.wrapCSS).appendTo(d.parent||"body");f.extend(d,{skin:f(".fancybox-skin",d.wrap),outer:f(".fancybox-outer",d.wrap),inner:f(".fancybox-inner",d.wrap)});f.each(["Top","Right","Bottom","Left"],function(a,b){d.skin.css("padding"+b,x(d.padding[a]))});b.trigger("onReady");
+if("inline"===c||"html"===c){if(!d.content||!d.content.length)return b._error("content")}else if(!e)return b._error("href");"image"===c?b._loadImage():"ajax"===c?b._loadAjax():"iframe"===c?b._loadIframe():b._afterLoad()}},_error:function(a){f.extend(b.coming,{type:"html",autoWidth:!0,autoHeight:!0,minWidth:0,minHeight:0,scrolling:"no",hasError:a,content:b.coming.tpl.error});b._afterLoad()},_loadImage:function(){var a=b.imgPreload=new Image;a.onload=function(){this.onload=this.onerror=null;b.coming.width=
+this.width/b.opts.pixelRatio;b.coming.height=this.height/b.opts.pixelRatio;b._afterLoad()};a.onerror=function(){this.onload=this.onerror=null;b._error("image")};a.src=b.coming.href;!0!==a.complete&&b.showLoading()},_loadAjax:function(){var a=b.coming;b.showLoading();b.ajaxLoad=f.ajax(f.extend({},a.ajax,{url:a.href,error:function(a,e){b.coming&&"abort"!==e?b._error("ajax",a):b.hideLoading()},success:function(d,e){"success"===e&&(a.content=d,b._afterLoad())}}))},_loadIframe:function(){var a=b.coming,
+d=f(a.tpl.iframe.replace(/\{rnd\}/g,(new Date).getTime())).attr("scrolling",t?"auto":a.iframe.scrolling).attr("src",a.href);f(a.wrap).bind("onReset",function(){try{f(this).find("iframe").hide().attr("src","//about:blank").end().empty()}catch(a){}});a.iframe.preload&&(b.showLoading(),d.one("load",function(){f(this).data("ready",1);t||f(this).bind("load.fb",b.update);f(this).parents(".fancybox-wrap").width("100%").removeClass("fancybox-tmp").show();b._afterLoad()}));a.content=d.appendTo(a.inner);a.iframe.preload||
+b._afterLoad()},_preloadImages:function(){var a=b.group,d=b.current,e=a.length,c=d.preload?Math.min(d.preload,e-1):0,f,g;for(g=1;g<=c;g+=1)f=a[(d.index+g)%e],"image"===f.type&&f.href&&((new Image).src=f.href)},_afterLoad:function(){var a=b.coming,d=b.current,e,c,l,g,h;b.hideLoading();if(a&&!1!==b.isActive)if(!1===b.trigger("afterLoad",a,d))a.wrap.stop(!0).trigger("onReset").remove(),b.coming=null;else{d&&(b.trigger("beforeChange",d),d.wrap.stop(!0).removeClass("fancybox-opened").find(".fancybox-item, .fancybox-nav").remove());
+b.unbindEvents();e=a.content;c=a.type;l=a.scrolling;f.extend(b,{wrap:a.wrap,skin:a.skin,outer:a.outer,inner:a.inner,current:a,previous:d});g=a.href;switch(c){case "inline":case "ajax":case "html":a.selector?e=f("<div>").html(e).find(a.selector):u(e)&&(e.data("fancybox-placeholder")||e.data("fancybox-placeholder",f('<div class="fancybox-placeholder"></div>').insertAfter(e).hide()),e=e.show().detach(),a.wrap.bind("onReset",function(){f(this).find(e).length&&e.hide().replaceAll(e.data("fancybox-placeholder")).data("fancybox-placeholder",
+!1)}));break;case "image":e=a.tpl.image.replace(/\{href\}/g,g);break;case "swf":e='<object id="fancybox-swf" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" width="100%" height="100%"><param name="movie" value="'+g+'"></param>',h="",f.each(a.swf,function(a,b){e+='<param name="'+a+'" value="'+b+'"></param>';h+=" "+a+'="'+b+'"'}),e+='<embed src="'+g+'" type="application/x-shockwave-flash" width="100%" height="100%"'+h+"></embed></object>"}u(e)&&e.parent().is(a.inner)||a.inner.append(e);b.trigger("beforeShow");
+a.inner.css("overflow","yes"===l?"scroll":"no"===l?"hidden":l);b._setDimension();b.reposition();b.isOpen=!1;b.coming=null;b.bindEvents();if(!b.isOpened)f(".fancybox-wrap").not(a.wrap).stop(!0).trigger("onReset").remove();else if(d.prevMethod)b.transitions[d.prevMethod]();b.transitions[b.isOpened?a.nextMethod:a.openMethod]();b._preloadImages()}},_setDimension:function(){var a=b.getViewport(),d=0,e=!1,c=!1,e=b.wrap,l=b.skin,g=b.inner,h=b.current,c=h.width,k=h.height,n=h.minWidth,v=h.minHeight,p=h.maxWidth,
+q=h.maxHeight,t=h.scrolling,r=h.scrollOutside?h.scrollbarWidth:0,y=h.margin,z=m(y[1]+y[3]),s=m(y[0]+y[2]),w,A,u,D,B,G,C,E,I;e.add(l).add(g).width("auto").height("auto").removeClass("fancybox-tmp");y=m(l.outerWidth(!0)-l.width());w=m(l.outerHeight(!0)-l.height());A=z+y;u=s+w;D=F(c)?(a.w-A)*m(c)/100:c;B=F(k)?(a.h-u)*m(k)/100:k;if("iframe"===h.type){if(I=h.content,h.autoHeight&&1===I.data("ready"))try{I[0].contentWindow.document.location&&(g.width(D).height(9999),G=I.contents().find("body"),r&&G.css("overflow-x",
+"hidden"),B=G.outerHeight(!0))}catch(H){}}else if(h.autoWidth||h.autoHeight)g.addClass("fancybox-tmp"),h.autoWidth||g.width(D),h.autoHeight||g.height(B),h.autoWidth&&(D=g.width()),h.autoHeight&&(B=g.height()),g.removeClass("fancybox-tmp");c=m(D);k=m(B);E=D/B;n=m(F(n)?m(n,"w")-A:n);p=m(F(p)?m(p,"w")-A:p);v=m(F(v)?m(v,"h")-u:v);q=m(F(q)?m(q,"h")-u:q);G=p;C=q;h.fitToView&&(p=Math.min(a.w-A,p),q=Math.min(a.h-u,q));A=a.w-z;s=a.h-s;h.aspectRatio?(c>p&&(c=p,k=m(c/E)),k>q&&(k=q,c=m(k*E)),c<n&&(c=n,k=m(c/
+E)),k<v&&(k=v,c=m(k*E))):(c=Math.max(n,Math.min(c,p)),h.autoHeight&&"iframe"!==h.type&&(g.width(c),k=g.height()),k=Math.max(v,Math.min(k,q)));if(h.fitToView)if(g.width(c).height(k),e.width(c+y),a=e.width(),z=e.height(),h.aspectRatio)for(;(a>A||z>s)&&c>n&&k>v&&!(19<d++);)k=Math.max(v,Math.min(q,k-10)),c=m(k*E),c<n&&(c=n,k=m(c/E)),c>p&&(c=p,k=m(c/E)),g.width(c).height(k),e.width(c+y),a=e.width(),z=e.height();else c=Math.max(n,Math.min(c,c-(a-A))),k=Math.max(v,Math.min(k,k-(z-s)));r&&"auto"===t&&k<B&&
+c+y+r<A&&(c+=r);g.width(c).height(k);e.width(c+y);a=e.width();z=e.height();e=(a>A||z>s)&&c>n&&k>v;c=h.aspectRatio?c<G&&k<C&&c<D&&k<B:(c<G||k<C)&&(c<D||k<B);f.extend(h,{dim:{width:x(a),height:x(z)},origWidth:D,origHeight:B,canShrink:e,canExpand:c,wPadding:y,hPadding:w,wrapSpace:z-l.outerHeight(!0),skinSpace:l.height()-k});!I&&h.autoHeight&&k>v&&k<q&&!c&&g.height("auto")},_getPosition:function(a){var d=b.current,e=b.getViewport(),c=d.margin,f=b.wrap.width()+c[1]+c[3],g=b.wrap.height()+c[0]+c[2],c={position:"absolute",
+top:c[0],left:c[3]};d.autoCenter&&d.fixed&&!a&&g<=e.h&&f<=e.w?c.position="fixed":d.locked||(c.top+=e.y,c.left+=e.x);c.top=x(Math.max(c.top,c.top+(e.h-g)*d.topRatio));c.left=x(Math.max(c.left,c.left+(e.w-f)*d.leftRatio));return c},_afterZoomIn:function(){var a=b.current;a&&((b.isOpen=b.isOpened=!0,b.wrap.css("overflow","visible").addClass("fancybox-opened"),b.update(),(a.closeClick||a.nextClick&&1<b.group.length)&&b.inner.css("cursor","pointer").bind("click.fb",function(d){f(d.target).is("a")||f(d.target).parent().is("a")||
+(d.preventDefault(),b[a.closeClick?"close":"next"]())}),a.closeBtn&&f(a.tpl.closeBtn).appendTo(b.skin).bind("click.fb",function(a){a.preventDefault();b.close()}),a.arrows&&1<b.group.length&&((a.loop||0<a.index)&&f(a.tpl.prev).appendTo(b.outer).bind("click.fb",b.prev),(a.loop||a.index<b.group.length-1)&&f(a.tpl.next).appendTo(b.outer).bind("click.fb",b.next)),b.trigger("afterShow"),a.loop||a.index!==a.group.length-1)?b.opts.autoPlay&&!b.player.isActive&&(b.opts.autoPlay=!1,b.play(!0)):b.play(!1))},
+_afterZoomOut:function(a){a=a||b.current;f(".fancybox-wrap").trigger("onReset").remove();f.extend(b,{group:{},opts:{},router:!1,current:null,isActive:!1,isOpened:!1,isOpen:!1,isClosing:!1,wrap:null,skin:null,outer:null,inner:null});b.trigger("afterClose",a)}});b.transitions={getOrigPosition:function(){var a=b.current,d=a.element,e=a.orig,c={},f=50,g=50,h=a.hPadding,k=a.wPadding,n=b.getViewport();!e&&a.isDom&&d.is(":visible")&&(e=d.find("img:first"),e.length||(e=d));u(e)?(c=e.offset(),e.is("img")&&
+(f=e.outerWidth(),g=e.outerHeight())):(c.top=n.y+(n.h-g)*a.topRatio,c.left=n.x+(n.w-f)*a.leftRatio);if("fixed"===b.wrap.css("position")||a.locked)c.top-=n.y,c.left-=n.x;return c={top:x(c.top-h*a.topRatio),left:x(c.left-k*a.leftRatio),width:x(f+k),height:x(g+h)}},step:function(a,d){var e,c,f=d.prop;c=b.current;var g=c.wrapSpace,h=c.skinSpace;if("width"===f||"height"===f)e=d.end===d.start?1:(a-d.start)/(d.end-d.start),b.isClosing&&(e=1-e),c="width"===f?c.wPadding:c.hPadding,c=a-c,b.skin[f](m("width"===
+f?c:c-g*e)),b.inner[f](m("width"===f?c:c-g*e-h*e))},zoomIn:function(){var a=b.current,d=a.pos,e=a.openEffect,c="elastic"===e,l=f.extend({opacity:1},d);delete l.position;c?(d=this.getOrigPosition(),a.openOpacity&&(d.opacity=0.1)):"fade"===e&&(d.opacity=0.1);b.wrap.css(d).animate(l,{duration:"none"===e?0:a.openSpeed,easing:a.openEasing,step:c?this.step:null,complete:b._afterZoomIn})},zoomOut:function(){var a=b.current,d=a.closeEffect,e="elastic"===d,c={opacity:0.1};e&&(c=this.getOrigPosition(),a.closeOpacity&&
+(c.opacity=0.1));b.wrap.animate(c,{duration:"none"===d?0:a.closeSpeed,easing:a.closeEasing,step:e?this.step:null,complete:b._afterZoomOut})},changeIn:function(){var a=b.current,d=a.nextEffect,e=a.pos,c={opacity:1},f=b.direction,g;e.opacity=0.1;"elastic"===d&&(g="down"===f||"up"===f?"top":"left","down"===f||"right"===f?(e[g]=x(m(e[g])-200),c[g]="+=200px"):(e[g]=x(m(e[g])+200),c[g]="-=200px"));"none"===d?b._afterZoomIn():b.wrap.css(e).animate(c,{duration:a.nextSpeed,easing:a.nextEasing,complete:b._afterZoomIn})},
+changeOut:function(){var a=b.previous,d=a.prevEffect,e={opacity:0.1},c=b.direction;"elastic"===d&&(e["down"===c||"up"===c?"top":"left"]=("up"===c||"left"===c?"-":"+")+"=200px");a.wrap.animate(e,{duration:"none"===d?0:a.prevSpeed,easing:a.prevEasing,complete:function(){f(this).trigger("onReset").remove()}})}};b.helpers.overlay={defaults:{closeClick:!0,speedOut:200,showEarly:!0,css:{},locked:!t,fixed:!0},overlay:null,fixed:!1,el:f("html"),create:function(a){var d;a=f.extend({},this.defaults,a);this.overlay&&
+this.close();d=b.coming?b.coming.parent:a.parent;this.overlay=f('<div class="fancybox-overlay"></div>').appendTo(d&&d.lenth?d:"body");this.fixed=!1;a.fixed&&b.defaults.fixed&&(this.overlay.addClass("fancybox-overlay-fixed"),this.fixed=!0)},open:function(a){var d=this;a=f.extend({},this.defaults,a);this.overlay?this.overlay.unbind(".overlay").width("auto").height("auto"):this.create(a);this.fixed||(q.bind("resize.overlay",f.proxy(this.update,this)),this.update());a.closeClick&&this.overlay.bind("click.overlay",
+function(a){if(f(a.target).hasClass("fancybox-overlay"))return b.isActive?b.close():d.close(),!1});this.overlay.css(a.css).show()},close:function(){q.unbind("resize.overlay");this.el.hasClass("fancybox-lock")&&(f(".fancybox-margin").removeClass("fancybox-margin"),this.el.removeClass("fancybox-lock"),q.scrollTop(this.scrollV).scrollLeft(this.scrollH));f(".fancybox-overlay").remove().hide();f.extend(this,{overlay:null,fixed:!1})},update:function(){var a="100%",b;this.overlay.width(a).height("100%");
+J?(b=Math.max(H.documentElement.offsetWidth,H.body.offsetWidth),p.width()>b&&(a=p.width())):p.width()>q.width()&&(a=p.width());this.overlay.width(a).height(p.height())},onReady:function(a,b){var e=this.overlay;f(".fancybox-overlay").stop(!0,!0);e||this.create(a);a.locked&&this.fixed&&b.fixed&&(b.locked=this.overlay.append(b.wrap),b.fixed=!1);!0===a.showEarly&&this.beforeShow.apply(this,arguments)},beforeShow:function(a,b){b.locked&&!this.el.hasClass("fancybox-lock")&&(!1!==this.fixPosition&&f("*").filter(function(){return"fixed"===
+f(this).css("position")&&!f(this).hasClass("fancybox-overlay")&&!f(this).hasClass("fancybox-wrap")}).addClass("fancybox-margin"),this.el.addClass("fancybox-margin"),this.scrollV=q.scrollTop(),this.scrollH=q.scrollLeft(),this.el.addClass("fancybox-lock"),q.scrollTop(this.scrollV).scrollLeft(this.scrollH));this.open(a)},onUpdate:function(){this.fixed||this.update()},afterClose:function(a){this.overlay&&!b.coming&&this.overlay.fadeOut(a.speedOut,f.proxy(this.close,this))}};b.helpers.title={defaults:{type:"float",
+position:"bottom"},beforeShow:function(a){var d=b.current,e=d.title,c=a.type;f.isFunction(e)&&(e=e.call(d.element,d));if(r(e)&&""!==f.trim(e)){d=f('<div class="fancybox-title fancybox-title-'+c+'-wrap">'+e+"</div>");switch(c){case "inside":c=b.skin;break;case "outside":c=b.wrap;break;case "over":c=b.inner;break;default:c=b.skin,d.appendTo("body"),J&&d.width(d.width()),d.wrapInner('<span class="child"></span>'),b.current.margin[2]+=Math.abs(m(d.css("margin-bottom")))}d["top"===a.position?"prependTo":
+"appendTo"](c)}}};f.fn.fancybox=function(a){var d,e=f(this),c=this.selector||"",l=function(g){var h=f(this).blur(),k=d,l,m;g.ctrlKey||g.altKey||g.shiftKey||g.metaKey||h.is(".fancybox-wrap")||(l=a.groupAttr||"data-fancybox-group",m=h.attr(l),m||(l="rel",m=h.get(0)[l]),m&&""!==m&&"nofollow"!==m&&(h=c.length?f(c):e,h=h.filter("["+l+'="'+m+'"]'),k=h.index(this)),a.index=k,!1!==b.open(h,a)&&g.preventDefault())};a=a||{};d=a.index||0;c&&!1!==a.live?p.undelegate(c,"click.fb-start").delegate(c+":not('.fancybox-item, .fancybox-nav')",
+"click.fb-start",l):e.unbind("click.fb-start").bind("click.fb-start",l);this.filter("[data-fancybox-start=1]").trigger("click");return this};p.ready(function(){var a,d;f.scrollbarWidth===w&&(f.scrollbarWidth=function(){var a=f('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo("body"),b=a.children(),b=b.innerWidth()-b.height(99).innerWidth();a.remove();return b});f.support.fixedPosition===w&&(f.support.fixedPosition=function(){var a=f('<div style="position:fixed;top:20px;"></div>').appendTo("body"),
+b=20===a[0].offsetTop||15===a[0].offsetTop;a.remove();return b}());f.extend(b.defaults,{scrollbarWidth:f.scrollbarWidth(),fixed:f.support.fixedPosition,parent:f("body")});a=f(s).width();K.addClass("fancybox-lock-test");d=f(s).width();K.removeClass("fancybox-lock-test");f("<style type='text/css'>.fancybox-margin{margin-right:"+(d-a)+"px;}</style>").appendTo("head")})})(window,document,jQuery);
+/*!
+ * Headhesive.js v1.2.3 - An on-demand sticky header
+ * Author: Copyright (c) Mark Goodyear <@markgdyr> <http://markgoodyear.com>
+ * Url: http://markgoodyear.com/labs/headhesive
+ * License: MIT
+ */
+(function(root, factory) {
+  if (typeof define === "function" && define.amd) {
+    define([], function() {
+      return factory();
+    });
+  } else if (typeof exports === "object") {
+    module.exports = factory();
+  } else {
+    root.Headhesive = factory();
+  }
+})(this, function() {
+  "use strict";
+  var _mergeObj = function(to, from) {
+    for (var p in from) {
+      if (from.hasOwnProperty(p)) {
+        to[p] = typeof from[p] === "object" ? _mergeObj(to[p], from[p]) : from[p];
+      }
+    }
+    return to;
+  };
+  var _throttle = function(func, wait) {
+    var _now = Date.now || function() {
+      return new Date().getTime();
+    };
+    var context, args, result;
+    var timeout = null;
+    var previous = 0;
+    var later = function() {
+      previous = _now();
+      timeout = null;
+      result = func.apply(context, args);
+      context = args = null;
+    };
+    return function() {
+      var now = _now();
+      var remaining = wait - (now - previous);
+      context = this;
+      args = arguments;
+      if (remaining <= 0) {
+        clearTimeout(timeout);
+        timeout = null;
+        previous = now;
+        result = func.apply(context, args);
+        context = args = null;
+      } else if (!timeout) {
+        timeout = setTimeout(later, remaining);
+      }
+      return result;
+    };
+  };
+  var _getScrollY = function() {
+    return window.pageYOffset !== undefined ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;
+  };
+  var _getElemY = function(elem, side) {
+    var pos = 0;
+    var elemHeight = elem.offsetHeight;
+    while (elem) {
+      pos += elem.offsetTop;
+      elem = elem.offsetParent;
+    }
+    if (side === "bottom") {
+      pos = pos + elemHeight;
+    }
+    return pos;
+  };
+  var Headhesive = function(elem, options) {
+    if (!("querySelector" in document && "addEventListener" in window)) {
+      return;
+    }
+    this.visible = false;
+    this.options = {
+      offset: 300,
+      offsetSide: "top",
+      classes: {
+        clone: "headhesive",
+        stick: "headhesive--stick",
+        unstick: "headhesive--unstick"
+      },
+      throttle: 250,
+      onInit: function() {},
+      onStick: function() {},
+      onUnstick: function() {},
+      onDestroy: function() {}
+    };
+    this.elem = typeof elem === "string" ? document.querySelector(elem) : elem;
+    this.options = _mergeObj(this.options, options);
+    this.init();
+  };
+  Headhesive.prototype = {
+    constructor: Headhesive,
+    init: function() {
+      this.clonedElem = this.elem.cloneNode(true);
+      this.clonedElem.className += " " + this.options.classes.clone;
+      document.body.insertBefore(this.clonedElem, document.body.firstChild);
+      if (typeof this.options.offset === "number") {
+        this.scrollOffset = this.options.offset;
+      } else if (typeof this.options.offset === "string") {
+        this._setScrollOffset();
+      } else {
+        throw new Error("Invalid offset: " + this.options.offset);
+      }
+      this._throttleUpdate = _throttle(this.update.bind(this), this.options.throttle);
+      this._throttleScrollOffset = _throttle(this._setScrollOffset.bind(this), this.options.throttle);
+      window.addEventListener("scroll", this._throttleUpdate, false);
+      window.addEventListener("resize", this._throttleScrollOffset, false);
+      this.options.onInit.call(this);
+    },
+    _setScrollOffset: function() {
+      if (typeof this.options.offset === "string") {
+        this.scrollOffset = _getElemY(document.querySelector(this.options.offset), this.options.offsetSide);
+      }
+    },
+    destroy: function() {
+      document.body.removeChild(this.clonedElem);
+      window.removeEventListener("scroll", this._throttleUpdate);
+      window.removeEventListener("resize", this._throttleScrollOffset);
+      this.options.onDestroy.call(this);
+    },
+    stick: function() {
+      if (!this.visible) {
+        this.clonedElem.className = this.clonedElem.className.replace(new RegExp("(^|\\s)*" + this.options.classes.unstick + "(\\s|$)*", "g"), "");
+        this.clonedElem.className += " " + this.options.classes.stick;
+        this.visible = true;
+        this.options.onStick.call(this);
+      }
+    },
+    unstick: function() {
+      if (this.visible) {
+        this.clonedElem.className = this.clonedElem.className.replace(new RegExp("(^|\\s)*" + this.options.classes.stick + "(\\s|$)*", "g"), "");
+        this.clonedElem.className += " " + this.options.classes.unstick;
+        this.visible = false;
+        this.options.onUnstick.call(this);
+      }
+    },
+    update: function() {
+      if (_getScrollY() > this.scrollOffset) {
+        this.stick();
+      } else {
+        this.unstick();
+      }
+    }
+  };
+  return Headhesive;
+});
+/* Simple JavaScript Inheritance
+ * By John Resig http://ejohn.org/
+ * MIT Licensed.
+ */
+// Inspired by base2 and Prototype
+(function(){
+	var initializing = false;
+
+	// The base JQClass implementation (does nothing)
+	window.JQClass = function(){};
+
+	// Collection of derived classes
+	JQClass.classes = {};
+ 
+	// Create a new JQClass that inherits from this class
+	JQClass.extend = function extender(prop) {
+		var base = this.prototype;
+
+		// Instantiate a base class (but only create the instance,
+		// don't run the init constructor)
+		initializing = true;
+		var prototype = new this();
+		initializing = false;
+
+		// Copy the properties over onto the new prototype
+		for (var name in prop) {
+			// Check if we're overwriting an existing function
+			prototype[name] = typeof prop[name] == 'function' &&
+				typeof base[name] == 'function' ?
+				(function(name, fn){
+					return function() {
+						var __super = this._super;
+
+						// Add a new ._super() method that is the same method
+						// but on the super-class
+						this._super = function(args) {
+							return base[name].apply(this, args || []);
+						};
+
+						var ret = fn.apply(this, arguments);				
+
+						// The method only need to be bound temporarily, so we
+						// remove it when we're done executing
+						this._super = __super;
+
+						return ret;
+					};
+				})(name, prop[name]) :
+				prop[name];
+		}
+
+		// The dummy class constructor
+		function JQClass() {
+			// All construction is actually done in the init method
+			if (!initializing && this._init) {
+				this._init.apply(this, arguments);
+			}
+		}
+
+		// Populate our constructed prototype object
+		JQClass.prototype = prototype;
+
+		// Enforce the constructor to be what we expect
+		JQClass.prototype.constructor = JQClass;
+
+		// And make this class extendable
+		JQClass.extend = extender;
+
+		return JQClass;
+	};
+})();
+
+(function($) { // Ensure $, encapsulate
+
+	/** Abstract base class for collection plugins v1.0.1.
+		Written by Keith Wood (kbwood{at}iinet.com.au) December 2013.
+		Licensed under the MIT (https://github.com/jquery/jquery/blob/master/MIT-LICENSE.txt) license.
+		@module $.JQPlugin
+		@abstract */
+	JQClass.classes.JQPlugin = JQClass.extend({
+
+		/** Name to identify this plugin.
+			@example name: 'tabs' */
+		name: 'plugin',
+
+		/** Default options for instances of this plugin (default: {}).
+			@example defaultOptions: {
+ 	selectedClass: 'selected',
+ 	triggers: 'click'
+ } */
+		defaultOptions: {},
+		
+		/** Options dependent on the locale.
+			Indexed by language and (optional) country code, with '' denoting the default language (English/US).
+			@example regionalOptions: {
+	'': {
+		greeting: 'Hi'
+	}
+ } */
+		regionalOptions: {},
+		
+		/** Names of getter methods - those that can't be chained (default: []).
+			@example _getters: ['activeTab'] */
+		_getters: [],
+
+		/** Retrieve a marker class for affected elements.
+			@private
+			@return {string} The marker class. */
+		_getMarker: function() {
+			return 'is-' + this.name;
+		},
+		
+		/** Initialise the plugin.
+			Create the jQuery bridge - plugin name <code>xyz</code>
+			produces <code>$.xyz</code> and <code>$.fn.xyz</code>. */
+		_init: function() {
+			// Apply default localisations
+			$.extend(this.defaultOptions, (this.regionalOptions && this.regionalOptions['']) || {});
+			// Camel-case the name
+			var jqName = camelCase(this.name);
+			// Expose jQuery singleton manager
+			$[jqName] = this;
+			// Expose jQuery collection plugin
+			$.fn[jqName] = function(options) {
+				var otherArgs = Array.prototype.slice.call(arguments, 1);
+				if ($[jqName]._isNotChained(options, otherArgs)) {
+					return $[jqName][options].apply($[jqName], [this[0]].concat(otherArgs));
+				}
+				return this.each(function() {
+					if (typeof options === 'string') {
+						if (options[0] === '_' || !$[jqName][options]) {
+							throw 'Unknown method: ' + options;
+						}
+						$[jqName][options].apply($[jqName], [this].concat(otherArgs));
+					}
+					else {
+						$[jqName]._attach(this, options);
+					}
+				});
+			};
 		},
 
-		/**
-		 * Build the clock face	
-		 */
-		 
-		build: function() {
-			var t        = this;
-			var children = this.factory.$el.find('ul');
-			var time 	 = this.factory.getTime().digitize([this.factory.getTime().time]);
-
-			if(time.length > children.length) {
-				$.each(time, function(i, digit) {
-					var list = t.createList(digit);
-
-					list.select(digit);
-				});
-			
+		/** Set default values for all subsequent instances.
+			@param options {object} The new default options.
+			@example $.plugin.setDefauls({name: value}) */
+		setDefaults: function(options) {
+			$.extend(this.defaultOptions, options || {});
+		},
+		
+		/** Determine whether a method is a getter and doesn't permit chaining.
+			@private
+			@param name {string} The method name.
+			@param otherArgs {any[]} Any other arguments for the method.
+			@return {boolean} True if this method is a getter, false otherwise. */
+		_isNotChained: function(name, otherArgs) {
+			if (name === 'option' && (otherArgs.length === 0 ||
+					(otherArgs.length === 1 && typeof otherArgs[0] === 'string'))) {
+				return true;
 			}
+			return $.inArray(name, this._getters) > -1;
+		},
+		
+		/** Initialise an element. Called internally only.
+			Adds an instance object as data named for the plugin.
+			@param elem {Element} The element to enhance.
+			@param options {object} Overriding settings. */
+		_attach: function(elem, options) {
+			elem = $(elem);
+			if (elem.hasClass(this._getMarker())) {
+				return;
+			}
+			elem.addClass(this._getMarker());
+			options = $.extend({}, this.defaultOptions, this._getMetadata(elem), options || {});
+			var inst = $.extend({name: this.name, elem: elem, options: options},
+				this._instSettings(elem, options));
+			elem.data(this.name, inst); // Save instance against element
+			this._postAttach(elem, inst);
+			this.option(elem, options);
+		},
 
-			$.each(this.lists, function(i, list) {
-				list.play();
+		/** Retrieve additional instance settings.
+			Override this in a sub-class to provide extra settings.
+			@param elem {jQuery} The current jQuery element.
+			@param options {object} The instance options.
+			@return {object} Any extra instance values.
+			@example _instSettings: function(elem, options) {
+ 	return {nav: elem.find(options.navSelector)};
+ } */
+		_instSettings: function(elem, options) {
+			return {};
+		},
+
+		/** Plugin specific post initialisation.
+			Override this in a sub-class to perform extra activities.
+			@param elem {jQuery} The current jQuery element.
+			@param inst {object} The instance settings.
+			@example _postAttach: function(elem, inst) {
+ 	elem.on('click.' + this.name, function() {
+ 		...
+ 	});
+ } */
+		_postAttach: function(elem, inst) {
+		},
+
+		/** Retrieve metadata configuration from the element.
+			Metadata is specified as an attribute:
+			<code>data-&lt;plugin name>="&lt;setting name>: '&lt;value>', ..."</code>.
+			Dates should be specified as strings in this format: 'new Date(y, m-1, d)'.
+			@private
+			@param elem {jQuery} The source element.
+			@return {object} The inline configuration or {}. */
+		_getMetadata: function(elem) {
+			try {
+				var data = elem.data(this.name.toLowerCase()) || '';
+				data = data.replace(/'/g, '"');
+				data = data.replace(/([a-zA-Z0-9]+):/g, function(match, group, i) { 
+					var count = data.substring(0, i).match(/"/g); // Handle embedded ':'
+					return (!count || count.length % 2 === 0 ? '"' + group + '":' : group + ':');
+				});
+				data = $.parseJSON('{' + data + '}');
+				for (var name in data) { // Convert dates
+					var value = data[name];
+					if (typeof value === 'string' && value.match(/^new Date\((.*)\)$/)) {
+						data[name] = eval(value);
+					}
+				}
+				return data;
+			}
+			catch (e) {
+				return {};
+			}
+		},
+
+		/** Retrieve the instance data for element.
+			@param elem {Element} The source element.
+			@return {object} The instance data or {}. */
+		_getInst: function(elem) {
+			return $(elem).data(this.name) || {};
+		},
+		
+		/** Retrieve or reconfigure the settings for a plugin.
+			@param elem {Element} The source element.
+			@param name {object|string} The collection of new option values or the name of a single option.
+			@param [value] {any} The value for a single named option.
+			@return {any|object} If retrieving a single value or all options.
+			@example $(selector).plugin('option', 'name', value)
+ $(selector).plugin('option', {name: value, ...})
+ var value = $(selector).plugin('option', 'name')
+ var options = $(selector).plugin('option') */
+		option: function(elem, name, value) {
+			elem = $(elem);
+			var inst = elem.data(this.name);
+			if  (!name || (typeof name === 'string' && value == null)) {
+				var options = (inst || {}).options;
+				return (options && name ? options[name] : options);
+			}
+			if (!elem.hasClass(this._getMarker())) {
+				return;
+			}
+			var options = name || {};
+			if (typeof name === 'string') {
+				options = {};
+				options[name] = value;
+			}
+			this._optionsChanged(elem, inst, options);
+			$.extend(inst.options, options);
+		},
+		
+		/** Plugin specific options processing.
+			Old value available in <code>inst.options[name]</code>, new value in <code>options[name]</code>.
+			Override this in a sub-class to perform extra activities.
+			@param elem {jQuery} The current jQuery element.
+			@param inst {object} The instance settings.
+			@param options {object} The new options.
+			@example _optionsChanged: function(elem, inst, options) {
+ 	if (options.name != inst.options.name) {
+ 		elem.removeClass(inst.options.name).addClass(options.name);
+ 	}
+ } */
+		_optionsChanged: function(elem, inst, options) {
+		},
+		
+		/** Remove all trace of the plugin.
+			Override <code>_preDestroy</code> for plugin-specific processing.
+			@param elem {Element} The source element.
+			@example $(selector).plugin('destroy') */
+		destroy: function(elem) {
+			elem = $(elem);
+			if (!elem.hasClass(this._getMarker())) {
+				return;
+			}
+			this._preDestroy(elem, this._getInst(elem));
+			elem.removeData(this.name).removeClass(this._getMarker());
+		},
+
+		/** Plugin specific pre destruction.
+			Override this in a sub-class to perform extra activities and undo everything that was
+			done in the <code>_postAttach</code> or <code>_optionsChanged</code> functions.
+			@param elem {jQuery} The current jQuery element.
+			@param inst {object} The instance settings.
+			@example _preDestroy: function(elem, inst) {
+ 	elem.off('.' + this.name);
+ } */
+		_preDestroy: function(elem, inst) {
+		}
+	});
+	
+	/** Convert names from hyphenated to camel-case.
+		@private
+		@param value {string} The original hyphenated name.
+		@return {string} The camel-case version. */
+	function camelCase(name) {
+		return name.replace(/-([a-z])/g, function(match, group) {
+			return group.toUpperCase();
+		});
+	}
+	
+	/** Expose the plugin base.
+		@namespace "$.JQPlugin" */
+	$.JQPlugin = {
+	
+		/** Create a new collection plugin.
+			@memberof "$.JQPlugin"
+			@param [superClass='JQPlugin'] {string} The name of the parent class to inherit from.
+			@param overrides {object} The property/function overrides for the new class.
+			@example $.JQPlugin.createPlugin({
+ 	name: 'tabs',
+ 	defaultOptions: {selectedClass: 'selected'},
+ 	_initSettings: function(elem, options) { return {...}; },
+ 	_postAttach: function(elem, inst) { ... }
+ }); */
+		createPlugin: function(superClass, overrides) {
+			if (typeof superClass === 'object') {
+				overrides = superClass;
+				superClass = 'JQPlugin';
+			}
+			superClass = camelCase(superClass);
+			var className = camelCase(overrides.name);
+			JQClass.classes[className] = JQClass.classes[superClass].extend(overrides);
+			new JQClass.classes[className]();
+		}
+	};
+
+})(jQuery);
+/* http://keith-wood.name/countdown.html
+   Countdown for jQuery v2.0.1.
+   Written by Keith Wood (kbwood{at}iinet.com.au) January 2008.
+   Available under the MIT (https://github.com/jquery/jquery/blob/master/MIT-LICENSE.txt) license. 
+   Please attribute the author if you use it. */
+
+(function($) { // Hide scope, no $ conflict
+
+	var pluginName = 'countdown';
+
+	var Y = 0; // Years
+	var O = 1; // Months
+	var W = 2; // Weeks
+	var D = 3; // Days
+	var H = 4; // Hours
+	var M = 5; // Minutes
+	var S = 6; // Seconds
+
+	/** Create the countdown plugin.
+		<p>Sets an element to show the time remaining until a given instant.</p>
+		<p>Expects HTML like:</p>
+		<pre>&lt;div>&lt;/div></pre>
+		<p>Provide inline configuration like:</p>
+		<pre>&lt;div data-countdown="name: 'value'">&lt;/div></pre>
+	 	@module Countdown
+		@augments JQPlugin
+		@example $(selector).countdown({until: +300}) */
+	$.JQPlugin.createPlugin({
+	
+		/** The name of the plugin. */
+		name: pluginName,
+
+		/** Countdown expiry callback.
+			Triggered when the countdown expires.
+			@callback expiryCallback */
+
+		/** Countdown server synchronisation callback.
+			Triggered when the countdown is initialised.
+			@callback serverSyncCallback
+			@return {Date} The current date/time on the server as expressed in the local timezone. */
+			
+		/** Countdown tick callback.
+			Triggered on every <code>tickInterval</code> ticks of the countdown.
+			@callback tickCallback
+			@param periods {number[]} The breakdown by period (years, months, weeks, days,
+					hours, minutes, seconds) of the time remaining/passed. */
+
+		/** Countdown which labels callback.
+			Triggered when the countdown is being display to determine which set of labels
+			(<code>labels</code>, <code>labels1</code>, ...) are to be used for the current period value.
+			@callback whichLabelsCallback
+			@param num {number} The current period value.
+			@return {number} The suffix for the label set to use. */
+			
+		/** Default settings for the plugin.
+			@property until {Date|number|string} The date/time to count down to, or number of seconds
+						offset from now, or string of amounts and units for offset(s) from now:
+						'Y' years, 'O' months, 'W' weeks, 'D' days, 'H' hours, 'M' minutes, 'S' seconds.
+			@example until: new Date(2013, 12-1, 25, 13, 30)
+ until: +300
+ until: '+1O -2D'
+			@property [since] {Date|number|string} The date/time to count up from, or
+						number of seconds offset from now, or string for unit offset(s):
+						'Y' years, 'O' months, 'W' weeks, 'D' days, 'H' hours, 'M' minutes, 'S' seconds.
+			@example since: new Date(2013, 1-1, 1)
+ since: -300
+ since: '-1O +2D'
+			@property [timezone=null] {number} The timezone (hours or minutes from GMT) for the target times,
+						or null for client local timezone.
+			@example timezone: +10
+ timezone: -60
+			@property [serverSync=null] {serverSyncCallback} A function to retrieve the current server time
+						for synchronisation.
+			@property [format='dHMS'] {string} The format for display - upper case for always, lower case only if non-zero,
+						'Y' years, 'O' months, 'W' weeks, 'D' days, 'H' hours, 'M' minutes, 'S' seconds.
+			@property [layout=''] {string} Build your own layout for the countdown.
+			@example layout: '{d<}{dn} {dl}{d>} {hnn}:{mnn}:{snn}'
+			@property [compact=false] {boolean} True to display in a compact format, false for an expanded one.
+			@property [padZeroes=false] {boolean} True to add leading zeroes
+			@property [significant=0] {number} The number of periods with non-zero values to show, zero for all.
+			@property [description=''] {string} The description displayed for the countdown.
+			@property [expiryUrl=''] {string} A URL to load upon expiry, replacing the current page.
+			@property [expiryText=''] {string} Text to display upon expiry, replacing the countdown. This may be HTML.
+			@property [alwaysExpire=false] {boolean} True to trigger <code>onExpiry</code> even if target time has passed.
+			@property [onExpiry=null] {expiryCallback} Callback when the countdown expires -
+						receives no parameters and <code>this</code> is the containing division.
+			@example onExpiry: function() {
+	...
+ }
+			@property [onTick=null] {tickCallback} Callback when the countdown is updated -
+						receives <code>number[7]</code> being the breakdown by period
+						(years, months, weeks, days, hours, minutes, seconds - based on
+						<code>format</code>) and <code>this</code> is the containing division.
+			@example onTick: function(periods) {
+ 	var secs = $.countdown.periodsToSeconds(periods);
+ 	if (secs < 300) { // Last five minutes
+		...
+ 	}
+ }
+			@property [tickInterval=1] {number} The interval (seconds) between <code>onTick</code> callbacks. */
+		defaultOptions: {
+			until: null,
+			since: null,
+			timezone: null,
+			serverSync: null,
+			format: 'dHMS',
+			layout: '',
+			compact: false,
+			padZeroes: false,
+			significant: 0,
+			description: '',
+			expiryUrl: '',
+			expiryText: '',
+			alwaysExpire: false,
+			onExpiry: null,
+			onTick: null,
+			tickInterval: 1
+		},
+
+		/** Localisations for the plugin.
+			Entries are objects indexed by the language code ('' being the default US/English).
+			Each object has the following attributes.
+			@property [labels=['Years','Months','Weeks','Days','Hours','Minutes','Seconds']] {string[]}
+						The display texts for the counter periods.
+			@property [labels1=['Year','Month','Week','Day','Hour','Minute','Second']] {string[]}
+						The display texts for the counter periods if they have a value of 1.
+						Add other <code>labels<em>n</em></code> attributes as necessary to
+						cater for other numeric idiosyncrasies of the localisation.
+			@property [compactLabels=['y','m','w','d']] {string[]} The compact texts for the counter periods.
+			@property [whichLabels=null] {whichLabelsCallback} A function to determine which
+						<code>labels<em>n</em></code> to use.
+			@example whichLabels: function(num) {
+	return (num > 1 ? 0 : 1);
+ }
+			@property [digits=['0','1',...,'9']] {number[]} The digits to display (0-9).
+			@property [timeSeparator=':'] {string} Separator for time periods in the compact layout.
+			@property [isRTL=false] {boolean} True for right-to-left languages, false for left-to-right. */
+		regionalOptions: { // Available regional settings, indexed by language/country code
+			'': { // Default regional settings - English/US
+				labels: ['Years', 'Months', 'Weeks', 'Days', 'Hours', 'Minutes', 'Seconds'],
+				labels1: ['Year', 'Month', 'Week', 'Day', 'Hour', 'Minute', 'Second'],
+				compactLabels: ['y', 'm', 'w', 'd'],
+				whichLabels: null,
+				digits: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+				timeSeparator: ':',
+				isRTL: false
+			}
+		},
+		
+		/** Names of getter methods - those that can't be chained. */
+		_getters: ['getTimes'],
+
+		/* Class name for the right-to-left marker. */
+		_rtlClass: pluginName + '-rtl',
+		/* Class name for the countdown section marker. */
+		_sectionClass: pluginName + '-section',
+		/* Class name for the period amount marker. */
+		_amountClass: pluginName + '-amount',
+		/* Class name for the period name marker. */
+		_periodClass: pluginName + '-period',
+		/* Class name for the countdown row marker. */
+		_rowClass: pluginName + '-row',
+		/* Class name for the holding countdown marker. */
+		_holdingClass: pluginName + '-holding',
+		/* Class name for the showing countdown marker. */
+		_showClass: pluginName + '-show',
+		/* Class name for the description marker. */
+		_descrClass: pluginName + '-descr',
+
+		/* List of currently active countdown elements. */
+		_timerElems: [],
+
+		/** Additional setup for the countdown.
+			Apply default localisations.
+			Create the timer. */
+		_init: function() {
+			var self = this;
+			this._super();
+			this._serverSyncs = [];
+			var now = (typeof Date.now == 'function' ? Date.now :
+				function() { return new Date().getTime(); });
+			var perfAvail = (window.performance && typeof window.performance.now == 'function');
+			// Shared timer for all countdowns
+			function timerCallBack(timestamp) {
+				var drawStart = (timestamp < 1e12 ? // New HTML5 high resolution timer
+					(perfAvail ? (performance.now() + performance.timing.navigationStart) : now()) :
+					// Integer milliseconds since unix epoch
+					timestamp || now());
+				if (drawStart - animationStartTime >= 1000) {
+							self._updateElems();
+					animationStartTime = drawStart;
+				}
+				requestAnimationFrame(timerCallBack);
+			}
+			var requestAnimationFrame = window.requestAnimationFrame ||
+				window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
+				window.oRequestAnimationFrame || window.msRequestAnimationFrame || null;
+				// This is when we expect a fall-back to setInterval as it's much more fluid
+			var animationStartTime = 0;
+			if (!requestAnimationFrame || $.noRequestAnimationFrame) {
+				$.noRequestAnimationFrame = null;
+						setInterval(function() { self._updateElems(); }, 980); // Fall back to good old setInterval
+			}
+			else {
+				animationStartTime = window.animationStartTime ||
+					window.webkitAnimationStartTime || window.mozAnimationStartTime ||
+					window.oAnimationStartTime || window.msAnimationStartTime || now();
+				requestAnimationFrame(timerCallBack);
+			}
+		},
+	
+		/** Convert a date/time to UTC.
+			@param tz {number} The hour or minute offset from GMT, e.g. +9, -360.
+			@param year {Date|number} the date/time in that timezone or the year in that timezone.
+			@param [month] {number} The month (0 - 11) (omit if <code>year</code> is a <code>Date</code>).
+			@param [day] {number} The day (omit if <code>year</code> is a <code>Date</code>).
+			@param [hours] {number} The hour (omit if <code>year</code> is a <code>Date</code>).
+			@param [mins] {number} The minute (omit if <code>year</code> is a <code>Date</code>).
+			@param [secs] {number} The second (omit if <code>year</code> is a <code>Date</code>).
+			@param [ms] {number} The millisecond (omit if <code>year</code> is a <code>Date</code>).
+			@return {Date} The equivalent UTC date/time.
+			@example $.countdown.UTCDate(+10, 2013, 12-1, 25, 12, 0)
+ $.countdown.UTCDate(-7, new Date(2013, 12-1, 25, 12, 0)) */
+		UTCDate: function(tz, year, month, day, hours, mins, secs, ms) {
+			if (typeof year == 'object' && year.constructor == Date) {
+				ms = year.getMilliseconds();
+				secs = year.getSeconds();
+				mins = year.getMinutes();
+				hours = year.getHours();
+				day = year.getDate();
+				month = year.getMonth();
+				year = year.getFullYear();
+			}
+			var d = new Date();
+			d.setUTCFullYear(year);
+			d.setUTCDate(1);
+			d.setUTCMonth(month || 0);
+			d.setUTCDate(day || 1);
+			d.setUTCHours(hours || 0);
+			d.setUTCMinutes((mins || 0) - (Math.abs(tz) < 30 ? tz * 60 : tz));
+			d.setUTCSeconds(secs || 0);
+			d.setUTCMilliseconds(ms || 0);
+			return d;
+		},
+
+		/** Convert a set of periods into seconds.
+	   Averaged for months and years.
+			@param periods {number[]} The periods per year/month/week/day/hour/minute/second.
+			@return {number} The corresponding number of seconds.
+			@example var secs = $.countdown.periodsToSeconds(periods) */
+		periodsToSeconds: function(periods) {
+			return periods[0] * 31557600 + periods[1] * 2629800 + periods[2] * 604800 +
+				periods[3] * 86400 + periods[4] * 3600 + periods[5] * 60 + periods[6];
+		},
+
+		_instSettings: function(elem, options) {
+			return {_periods: [0, 0, 0, 0, 0, 0, 0]};
+		},
+
+		/** Add an element to the list of active ones.
+			@private
+			@param elem {Element} The countdown element. */
+		_addElem: function(elem) {
+			if (!this._hasElem(elem)) {
+				this._timerElems.push(elem);
+			}
+		},
+
+		/** See if an element is in the list of active ones.
+			@private
+			@param elem {Element} The countdown element.
+			@return {boolean} True if present, false if not. */
+		_hasElem: function(elem) {
+			return ($.inArray(elem, this._timerElems) > -1);
+		},
+
+		/** Remove an element from the list of active ones.
+			@private
+			@param elem {Element} The countdown element. */
+		_removeElem: function(elem) {
+			this._timerElems = $.map(this._timerElems,
+				function(value) { return (value == elem ? null : value); }); // delete entry
+		},
+
+		/** Update each active timer element.
+			@private */
+		_updateElems: function() {
+			for (var i = this._timerElems.length - 1; i >= 0; i--) {
+				this._updateCountdown(this._timerElems[i]);
+			}
+		},
+
+		_optionsChanged: function(elem, inst, options) {
+			if (options.layout) {
+				options.layout = options.layout.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+			}
+			this._resetExtraLabels(inst.options, options);
+			var timezoneChanged = (inst.options.timezone != options.timezone);
+			$.extend(inst.options, options);
+			this._adjustSettings(elem, inst,
+				options.until != null || options.since != null || timezoneChanged);
+			var now = new Date();
+			if ((inst._since && inst._since < now) || (inst._until && inst._until > now)) {
+				this._addElem(elem[0]);
+			}
+			this._updateCountdown(elem, inst);
+		},
+
+		/** Redisplay the countdown with an updated display.
+			@private
+			@param elem {Element|jQuery} The containing division.
+			@param inst {object} The current settings for this instance. */
+		_updateCountdown: function(elem, inst) {
+			elem = elem.jquery ? elem : $(elem);
+			inst = inst || this._getInst(elem);
+			if (!inst) {
+				return;
+			}
+			elem.html(this._generateHTML(inst)).toggleClass(this._rtlClass, inst.options.isRTL);
+			if ($.isFunction(inst.options.onTick)) {
+				var periods = inst._hold != 'lap' ? inst._periods :
+					this._calculatePeriods(inst, inst._show, inst.options.significant, new Date());
+				if (inst.options.tickInterval == 1 ||
+						this.periodsToSeconds(periods) % inst.options.tickInterval == 0) {
+					inst.options.onTick.apply(elem[0], [periods]);
+				}
+			}
+			var expired = inst._hold != 'pause' &&
+				(inst._since ? inst._now.getTime() < inst._since.getTime() :
+				inst._now.getTime() >= inst._until.getTime());
+			if (expired && !inst._expiring) {
+				inst._expiring = true;
+				if (this._hasElem(elem[0]) || inst.options.alwaysExpire) {
+					this._removeElem(elem[0]);
+					if ($.isFunction(inst.options.onExpiry)) {
+						inst.options.onExpiry.apply(elem[0], []);
+					}
+					if (inst.options.expiryText) {
+						var layout = inst.options.layout;
+						inst.options.layout = inst.options.expiryText;
+						this._updateCountdown(elem[0], inst);
+						inst.options.layout = layout;
+					}
+					if (inst.options.expiryUrl) {
+						window.location = inst.options.expiryUrl;
+					}
+				}
+				inst._expiring = false;
+			}
+			else if (inst._hold == 'pause') {
+				this._removeElem(elem[0]);
+			}
+		},
+
+		/** Reset any extra labelsn and compactLabelsn entries if changing labels.
+			@private
+			@param base {object} The options to be updated.
+			@param options {object} The new option values. */
+		_resetExtraLabels: function(base, options) {
+			for (var n in options) {
+				if (n.match(/[Ll]abels[02-9]|compactLabels1/)) {
+					base[n] = options[n];
+				}
+			}
+			for (var n in base) { // Remove custom numbered labels
+				if (n.match(/[Ll]abels[02-9]|compactLabels1/) && typeof options[n] === 'undefined') {
+					base[n] = null;
+				}
+			}
+		},
+	
+		/** Calculate internal settings for an instance.
+			@private
+			@param elem {jQuery} The containing division.
+			@param inst {object} The current settings for this instance.
+			@param recalc {boolean} True if until or since are set. */
+		_adjustSettings: function(elem, inst, recalc) {
+		var now;
+		var serverOffset = 0;
+		var serverEntry = null;
+		for (var i = 0; i < this._serverSyncs.length; i++) {
+			if (this._serverSyncs[i][0] == inst.options.serverSync) {
+				serverEntry = this._serverSyncs[i][1];
+				break;
+			}
+		}
+		if (serverEntry != null) {
+			serverOffset = (inst.options.serverSync ? serverEntry : 0);
+			now = new Date();
+		}
+		else {
+			var serverResult = ($.isFunction(inst.options.serverSync) ?
+					inst.options.serverSync.apply(elem[0], []) : null);
+			now = new Date();
+			serverOffset = (serverResult ? now.getTime() - serverResult.getTime() : 0);
+			this._serverSyncs.push([inst.options.serverSync, serverOffset]);
+		}
+		var timezone = inst.options.timezone;
+		timezone = (timezone == null ? -now.getTimezoneOffset() : timezone);
+		if (recalc || (!recalc && inst._until == null && inst._since == null)) {
+			inst._since = inst.options.since;
+			if (inst._since != null) {
+				inst._since = this.UTCDate(timezone, this._determineTime(inst._since, null));
+				if (inst._since && serverOffset) {
+					inst._since.setMilliseconds(inst._since.getMilliseconds() + serverOffset);
+				}
+			}
+			inst._until = this.UTCDate(timezone, this._determineTime(inst.options.until, now));
+			if (serverOffset) {
+				inst._until.setMilliseconds(inst._until.getMilliseconds() + serverOffset);
+			}
+		}
+		inst._show = this._determineShow(inst);
+	},
+
+		/** Remove the countdown widget from a div.
+			@param elem {jQuery} The containing division.
+			@param inst {object} The current instance object. */
+		_preDestroy: function(elem, inst) {
+			this._removeElem(elem[0]);
+			elem.empty();
+	},
+
+		/** Pause a countdown widget at the current time.
+	   Stop it running but remember and display the current time.
+			@param elem {Element} The containing division.
+			@example $(selector).countdown('pause') */
+		pause: function(elem) {
+			this._hold(elem, 'pause');
+	},
+
+		/** Pause a countdown widget at the current time.
+	   Stop the display but keep the countdown running.
+			@param elem {Element} The containing division.
+			@example $(selector).countdown('lap') */
+		lap: function(elem) {
+			this._hold(elem, 'lap');
+		},
+
+		/** Resume a paused countdown widget.
+			@param elem {Element} The containing division.
+			@example $(selector).countdown('resume') */
+		resume: function(elem) {
+			this._hold(elem, null);
+		},
+
+		/** Toggle a paused countdown widget.
+			@param elem {Element} The containing division.
+			@example $(selector).countdown('toggle') */
+		toggle: function(elem) {
+			var inst = $.data(elem, this.name) || {};
+			this[!inst._hold ? 'pause' : 'resume'](elem);
+		},
+
+		/** Toggle a lapped countdown widget.
+			@param elem {Element} The containing division.
+			@example $(selector).countdown('toggleLap') */
+		toggleLap: function(elem) {
+			var inst = $.data(elem, this.name) || {};
+			this[!inst._hold ? 'lap' : 'resume'](elem);
+		},
+
+		/** Pause or resume a countdown widget.
+			@private
+			@param elem {Element} The containing division.
+			@param hold {string} The new hold setting. */
+		_hold: function(elem, hold) {
+			var inst = $.data(elem, this.name);
+		if (inst) {
+			if (inst._hold == 'pause' && !hold) {
+				inst._periods = inst._savePeriods;
+				var sign = (inst._since ? '-' : '+');
+				inst[inst._since ? '_since' : '_until'] =
+					this._determineTime(sign + inst._periods[0] + 'y' +
+						sign + inst._periods[1] + 'o' + sign + inst._periods[2] + 'w' +
+						sign + inst._periods[3] + 'd' + sign + inst._periods[4] + 'h' + 
+						sign + inst._periods[5] + 'm' + sign + inst._periods[6] + 's');
+					this._addElem(elem);
+			}
+			inst._hold = hold;
+			inst._savePeriods = (hold == 'pause' ? inst._periods : null);
+				$.data(elem, this.name, inst);
+				this._updateCountdown(elem, inst);
+		}
+	},
+
+		/** Return the current time periods.
+			@param elem {Element} The containing division.
+			@return {number[]} The current periods for the countdown.
+			@example var periods = $(selector).countdown('getTimes') */
+		getTimes: function(elem) {
+			var inst = $.data(elem, this.name);
+		return (!inst ? null : (inst._hold == 'pause' ? inst._savePeriods : (!inst._hold ? inst._periods :
+			this._calculatePeriods(inst, inst._show, inst.options.significant, new Date()))));
+	},
+
+		/** A time may be specified as an exact value or a relative one.
+			@private
+			@param setting {string|number|Date} The date/time value as a relative or absolute value.
+			@param defaultTime {Date} The date/time to use if no other is supplied.
+			@return {Date} The corresponding date/time. */
+	_determineTime: function(setting, defaultTime) {
+			var self = this;
+		var offsetNumeric = function(offset) { // e.g. +300, -2
+			var time = new Date();
+			time.setTime(time.getTime() + offset * 1000);
+			return time;
+		};
+		var offsetString = function(offset) { // e.g. '+2d', '-4w', '+3h +30m'
+			offset = offset.toLowerCase();
+			var time = new Date();
+			var year = time.getFullYear();
+			var month = time.getMonth();
+			var day = time.getDate();
+			var hour = time.getHours();
+			var minute = time.getMinutes();
+			var second = time.getSeconds();
+			var pattern = /([+-]?[0-9]+)\s*(s|m|h|d|w|o|y)?/g;
+			var matches = pattern.exec(offset);
+			while (matches) {
+				switch (matches[2] || 's') {
+					case 's': second += parseInt(matches[1], 10); break;
+					case 'm': minute += parseInt(matches[1], 10); break;
+					case 'h': hour += parseInt(matches[1], 10); break;
+					case 'd': day += parseInt(matches[1], 10); break;
+					case 'w': day += parseInt(matches[1], 10) * 7; break;
+					case 'o':
+						month += parseInt(matches[1], 10); 
+							day = Math.min(day, self._getDaysInMonth(year, month));
+						break;
+					case 'y':
+						year += parseInt(matches[1], 10);
+							day = Math.min(day, self._getDaysInMonth(year, month));
+						break;
+				}
+				matches = pattern.exec(offset);
+			}
+			return new Date(year, month, day, hour, minute, second, 0);
+		};
+		var time = (setting == null ? defaultTime :
+			(typeof setting == 'string' ? offsetString(setting) :
+			(typeof setting == 'number' ? offsetNumeric(setting) : setting)));
+		if (time) time.setMilliseconds(0);
+		return time;
+	},
+
+		/** Determine the number of days in a month.
+			@private
+			@param year {number} The year.
+			@param month {number} The month.
+			@return {number} The days in that month. */
+	_getDaysInMonth: function(year, month) {
+		return 32 - new Date(year, month, 32).getDate();
+	},
+
+		/** Default implementation to determine which set of labels should be used for an amount.
+			Use the <code>labels</code> attribute with the same numeric suffix (if it exists).
+			@private
+			@param num {number} The amount to be displayed.
+			@return {number} The set of labels to be used for this amount. */
+	_normalLabels: function(num) {
+		return num;
+	},
+
+		/** Generate the HTML to display the countdown widget.
+			@private
+			@param inst {object} The current settings for this instance.
+			@return {string} The new HTML for the countdown display. */
+	_generateHTML: function(inst) {
+		var self = this;
+		// Determine what to show
+		inst._periods = (inst._hold ? inst._periods :
+			this._calculatePeriods(inst, inst._show, inst.options.significant, new Date()));
+		// Show all 'asNeeded' after first non-zero value
+		var shownNonZero = false;
+		var showCount = 0;
+		var sigCount = inst.options.significant;
+		var show = $.extend({}, inst._show);
+		for (var period = Y; period <= S; period++) {
+			shownNonZero |= (inst._show[period] == '?' && inst._periods[period] > 0);
+			show[period] = (inst._show[period] == '?' && !shownNonZero ? null : inst._show[period]);
+			showCount += (show[period] ? 1 : 0);
+			sigCount -= (inst._periods[period] > 0 ? 1 : 0);
+		}
+		var showSignificant = [false, false, false, false, false, false, false];
+		for (var period = S; period >= Y; period--) { // Determine significant periods
+			if (inst._show[period]) {
+				if (inst._periods[period]) {
+					showSignificant[period] = true;
+				}
+				else {
+					showSignificant[period] = sigCount > 0;
+					sigCount--;
+				}
+			}
+		}
+		var labels = (inst.options.compact ? inst.options.compactLabels : inst.options.labels);
+		var whichLabels = inst.options.whichLabels || this._normalLabels;
+		var showCompact = function(period) {
+			var labelsNum = inst.options['compactLabels' + whichLabels(inst._periods[period])];
+			return (show[period] ? self._translateDigits(inst, inst._periods[period]) +
+				(labelsNum ? labelsNum[period] : labels[period]) + ' ' : '');
+		};
+		var minDigits = (inst.options.padZeroes ? 2 : 1);
+		var showFull = function(period) {
+			var labelsNum = inst.options['labels' + whichLabels(inst._periods[period])];
+			return ((!inst.options.significant && show[period]) ||
+				(inst.options.significant && showSignificant[period]) ?
+					'<span class="' + self._sectionClass + '">' +
+					'<span class="' + self._amountClass + '">' +
+				self._minDigits(inst, inst._periods[period], minDigits) + '</span>' +
+				'<span class="' + self._periodClass + '">' +
+				(labelsNum ? labelsNum[period] : labels[period]) + '</span></span>' : '');
+		};
+		return (inst.options.layout ? this._buildLayout(inst, show, inst.options.layout,
+			inst.options.compact, inst.options.significant, showSignificant) :
+			((inst.options.compact ? // Compact version
+			'<span class="' + this._rowClass + ' ' + this._amountClass +
+			(inst._hold ? ' ' + this._holdingClass : '') + '">' + 
+			showCompact(Y) + showCompact(O) + showCompact(W) + showCompact(D) + 
+			(show[H] ? this._minDigits(inst, inst._periods[H], 2) : '') +
+			(show[M] ? (show[H] ? inst.options.timeSeparator : '') +
+			this._minDigits(inst, inst._periods[M], 2) : '') +
+			(show[S] ? (show[H] || show[M] ? inst.options.timeSeparator : '') +
+			this._minDigits(inst, inst._periods[S], 2) : '') :
+			// Full version
+			'<span class="' + this._rowClass + ' ' + this._showClass + (inst.options.significant || showCount) +
+			(inst._hold ? ' ' + this._holdingClass : '') + '">' +
+			showFull(Y) + showFull(O) + showFull(W) + showFull(D) +
+			showFull(H) + showFull(M) + showFull(S)) + '</span>' +
+			(inst.options.description ? '<span class="' + this._rowClass + ' ' + this._descrClass + '">' +
+			inst.options.description + '</span>' : '')));
+	},
+
+		/** Construct a custom layout.
+			@private
+			@param inst {object} The current settings for this instance.
+			@param show {boolean[]} Flags indicating which periods are requested.
+			@param layout {string} The customised layout.
+			@param compact {boolean} True if using compact labels.
+			@param significant {number} The number of periods with values to show, zero for all.
+			@param showSignificant {boolean[]} Other periods to show for significance.
+			@return {string} The custom HTML. */
+	_buildLayout: function(inst, show, layout, compact, significant, showSignificant) {
+		var labels = inst.options[compact ? 'compactLabels' : 'labels'];
+		var whichLabels = inst.options.whichLabels || this._normalLabels;
+		var labelFor = function(index) {
+			return (inst.options[(compact ? 'compactLabels' : 'labels') +
+				whichLabels(inst._periods[index])] || labels)[index];
+		};
+		var digit = function(value, position) {
+			return inst.options.digits[Math.floor(value / position) % 10];
+		};
+		var subs = {desc: inst.options.description, sep: inst.options.timeSeparator,
+			yl: labelFor(Y), yn: this._minDigits(inst, inst._periods[Y], 1),
+			ynn: this._minDigits(inst, inst._periods[Y], 2),
+			ynnn: this._minDigits(inst, inst._periods[Y], 3), y1: digit(inst._periods[Y], 1),
+			y10: digit(inst._periods[Y], 10), y100: digit(inst._periods[Y], 100),
+			y1000: digit(inst._periods[Y], 1000),
+			ol: labelFor(O), on: this._minDigits(inst, inst._periods[O], 1),
+			onn: this._minDigits(inst, inst._periods[O], 2),
+			onnn: this._minDigits(inst, inst._periods[O], 3), o1: digit(inst._periods[O], 1),
+			o10: digit(inst._periods[O], 10), o100: digit(inst._periods[O], 100),
+			o1000: digit(inst._periods[O], 1000),
+			wl: labelFor(W), wn: this._minDigits(inst, inst._periods[W], 1),
+			wnn: this._minDigits(inst, inst._periods[W], 2),
+			wnnn: this._minDigits(inst, inst._periods[W], 3), w1: digit(inst._periods[W], 1),
+			w10: digit(inst._periods[W], 10), w100: digit(inst._periods[W], 100),
+			w1000: digit(inst._periods[W], 1000),
+			dl: labelFor(D), dn: this._minDigits(inst, inst._periods[D], 1),
+			dnn: this._minDigits(inst, inst._periods[D], 2),
+			dnnn: this._minDigits(inst, inst._periods[D], 3), d1: digit(inst._periods[D], 1),
+			d10: digit(inst._periods[D], 10), d100: digit(inst._periods[D], 100),
+			d1000: digit(inst._periods[D], 1000),
+			hl: labelFor(H), hn: this._minDigits(inst, inst._periods[H], 1),
+			hnn: this._minDigits(inst, inst._periods[H], 2),
+			hnnn: this._minDigits(inst, inst._periods[H], 3), h1: digit(inst._periods[H], 1),
+			h10: digit(inst._periods[H], 10), h100: digit(inst._periods[H], 100),
+			h1000: digit(inst._periods[H], 1000),
+			ml: labelFor(M), mn: this._minDigits(inst, inst._periods[M], 1),
+			mnn: this._minDigits(inst, inst._periods[M], 2),
+			mnnn: this._minDigits(inst, inst._periods[M], 3), m1: digit(inst._periods[M], 1),
+			m10: digit(inst._periods[M], 10), m100: digit(inst._periods[M], 100),
+			m1000: digit(inst._periods[M], 1000),
+			sl: labelFor(S), sn: this._minDigits(inst, inst._periods[S], 1),
+			snn: this._minDigits(inst, inst._periods[S], 2),
+			snnn: this._minDigits(inst, inst._periods[S], 3), s1: digit(inst._periods[S], 1),
+			s10: digit(inst._periods[S], 10), s100: digit(inst._periods[S], 100),
+			s1000: digit(inst._periods[S], 1000)};
+		var html = layout;
+		// Replace period containers: {p<}...{p>}
+		for (var i = Y; i <= S; i++) {
+			var period = 'yowdhms'.charAt(i);
+			var re = new RegExp('\\{' + period + '<\\}([\\s\\S]*)\\{' + period + '>\\}', 'g');
+			html = html.replace(re, ((!significant && show[i]) ||
+				(significant && showSignificant[i]) ? '$1' : ''));
+		}
+		// Replace period values: {pn}
+		$.each(subs, function(n, v) {
+			var re = new RegExp('\\{' + n + '\\}', 'g');
+			html = html.replace(re, v);
+		});
+		return html;
+	},
+
+		/** Ensure a numeric value has at least n digits for display.
+			@private
+			@param inst {object} The current settings for this instance.
+			@param value {number} The value to display.
+			@param len {number} The minimum length.
+			@return {string} The display text. */
+	_minDigits: function(inst, value, len) {
+		value = '' + value;
+		if (value.length >= len) {
+			return this._translateDigits(inst, value);
+		}
+		value = '0000000000' + value;
+		return this._translateDigits(inst, value.substr(value.length - len));
+	},
+
+		/** Translate digits into other representations.
+			@private
+			@param inst {object} The current settings for this instance.
+			@param value {string} The text to translate.
+			@return {string} The translated text. */
+	_translateDigits: function(inst, value) {
+		return ('' + value).replace(/[0-9]/g, function(digit) {
+				return inst.options.digits[digit];
 			});
+	},
 
-			this.base();
-		},
-		
-		/**
-		 * Flip the clock face
-		 */
-		 
-		flip: function(time, doNotAddPlayClass) {			
-			if(this.shouldAutoIncrement) {
-				this.autoIncrement();
-			}
-
-			if(!time) {		
-				time = this.factory.getTime().digitize([this.factory.getTime().time]);
-			}
-
-			this.base(time, doNotAddPlayClass);
-		},
-
-		/**
-		 * Reset the clock face
-		 */
-
-		reset: function() {
-			this.factory.time = new FlipClock.Time(
-				this.factory, 
-				this.factory.original ? Math.round(this.factory.original) : 0
-			);
-
-			this.flip();
-		}
-	});
+		/** Translate the format into flags for each period.
+			@private
+			@param inst {object} The current settings for this instance.
+			@return {string[]} Flags indicating which periods are requested (?) or
+					required (!) by year, month, week, day, hour, minute, second. */
+	_determineShow: function(inst) {
+		var format = inst.options.format;
+		var show = [];
+		show[Y] = (format.match('y') ? '?' : (format.match('Y') ? '!' : null));
+		show[O] = (format.match('o') ? '?' : (format.match('O') ? '!' : null));
+		show[W] = (format.match('w') ? '?' : (format.match('W') ? '!' : null));
+		show[D] = (format.match('d') ? '?' : (format.match('D') ? '!' : null));
+		show[H] = (format.match('h') ? '?' : (format.match('H') ? '!' : null));
+		show[M] = (format.match('m') ? '?' : (format.match('M') ? '!' : null));
+		show[S] = (format.match('s') ? '?' : (format.match('S') ? '!' : null));
+		return show;
+	},
 	
-}(jQuery));
-(function($) {
-
-	/**
-	 * Daily Counter Clock Face
-	 *
-	 * This class will generate a daily counter for FlipClock.js. A
-	 * daily counter will track days, hours, minutes, and seconds. If
-	 * the number of available digits is exceeded in the count, a new
-	 * digit will be created.
-	 *
-	 * @param  object  The parent FlipClock.Factory object
-	 * @param  object  An object of properties to override the default
-	 */
-
-	FlipClock.DailyCounterFace = FlipClock.Face.extend({
-
-		showSeconds: true,
-
-		/**
-		 * Constructor
-		 *
-		 * @param  object  The parent FlipClock.Factory object
-		 * @param  object  An object of properties to override the default
-		 */
-
-		constructor: function(factory, options) {
-			this.base(factory, options);
-		},
-
-		/**
-		 * Build the clock face
-		 */
-
-		build: function(time) {
-			var t = this;
-			var children = this.factory.$el.find('ul');
-			var offset = 0;
-
-			time = time ? time : this.factory.time.getDayCounter(this.showSeconds);
-
-			if(time.length > children.length) {
-				$.each(time, function(i, digit) {
-					t.createList(digit);
-				});
+		/** Calculate the requested periods between now and the target time.
+			@private
+			@param inst {object} The current settings for this instance.
+			@param show {string[]} Flags indicating which periods are requested/required.
+			@param significant {number} The number of periods with values to show, zero for all.
+			@param now {Date} The current date and time.
+			@return {number[]} The current time periods (always positive)
+					by year, month, week, day, hour, minute, second. */
+	_calculatePeriods: function(inst, show, significant, now) {
+		// Find endpoints
+		inst._now = now;
+		inst._now.setMilliseconds(0);
+		var until = new Date(inst._now.getTime());
+		if (inst._since) {
+			if (now.getTime() < inst._since.getTime()) {
+				inst._now = now = until;
 			}
-
-			if(this.showSeconds) {
-				$(this.createDivider('Seconds')).insertBefore(this.lists[this.lists.length - 2].$el);
+			else {
+				now = inst._since;
 			}
-			else
-			{
-				offset = 2;
-			}
-
-			$(this.createDivider('Minutes')).insertBefore(this.lists[this.lists.length - 4 + offset].$el);
-			$(this.createDivider('Hours')).insertBefore(this.lists[this.lists.length - 6 + offset].$el);
-			$(this.createDivider('Days', true)).insertBefore(this.lists[0].$el);
-
-			this.base();
-		},
-
-		/**
-		 * Flip the clock face
-		 */
-
-		flip: function(time, doNotAddPlayClass) {
-			if(!time) {
-				time = this.factory.time.getDayCounter(this.showSeconds);
-			}
-
-			this.autoIncrement();
-
-			this.base(time, doNotAddPlayClass);
 		}
-
+		else {
+			until.setTime(inst._until.getTime());
+			if (now.getTime() > inst._until.getTime()) {
+				inst._now = now = until;
+			}
+		}
+		// Calculate differences by period
+		var periods = [0, 0, 0, 0, 0, 0, 0];
+		if (show[Y] || show[O]) {
+			// Treat end of months as the same
+				var lastNow = this._getDaysInMonth(now.getFullYear(), now.getMonth());
+				var lastUntil = this._getDaysInMonth(until.getFullYear(), until.getMonth());
+			var sameDay = (until.getDate() == now.getDate() ||
+				(until.getDate() >= Math.min(lastNow, lastUntil) &&
+				now.getDate() >= Math.min(lastNow, lastUntil)));
+			var getSecs = function(date) {
+				return (date.getHours() * 60 + date.getMinutes()) * 60 + date.getSeconds();
+			};
+			var months = Math.max(0,
+				(until.getFullYear() - now.getFullYear()) * 12 + until.getMonth() - now.getMonth() +
+				((until.getDate() < now.getDate() && !sameDay) ||
+				(sameDay && getSecs(until) < getSecs(now)) ? -1 : 0));
+			periods[Y] = (show[Y] ? Math.floor(months / 12) : 0);
+			periods[O] = (show[O] ? months - periods[Y] * 12 : 0);
+			// Adjust for months difference and end of month if necessary
+			now = new Date(now.getTime());
+			var wasLastDay = (now.getDate() == lastNow);
+				var lastDay = this._getDaysInMonth(now.getFullYear() + periods[Y],
+				now.getMonth() + periods[O]);
+			if (now.getDate() > lastDay) {
+				now.setDate(lastDay);
+			}
+			now.setFullYear(now.getFullYear() + periods[Y]);
+			now.setMonth(now.getMonth() + periods[O]);
+			if (wasLastDay) {
+				now.setDate(lastDay);
+			}
+		}
+		var diff = Math.floor((until.getTime() - now.getTime()) / 1000);
+		var extractPeriod = function(period, numSecs) {
+			periods[period] = (show[period] ? Math.floor(diff / numSecs) : 0);
+			diff -= periods[period] * numSecs;
+		};
+		extractPeriod(W, 604800);
+		extractPeriod(D, 86400);
+		extractPeriod(H, 3600);
+		extractPeriod(M, 60);
+		extractPeriod(S, 1);
+		if (diff > 0 && !inst._since) { // Round up if left overs
+			var multiplier = [1, 12, 4.3482, 7, 24, 60, 60];
+			var lastShown = S;
+			var max = 1;
+			for (var period = S; period >= Y; period--) {
+				if (show[period]) {
+					if (periods[lastShown] >= max) {
+						periods[lastShown] = 0;
+						diff = 1;
+					}
+					if (diff > 0) {
+						periods[period]++;
+						diff = 0;
+						lastShown = period;
+						max = 1;
+					}
+				}
+				max *= multiplier[period];
+			}
+		}
+		if (significant) { // Zero out insignificant periods
+			for (var period = Y; period <= S; period++) {
+				if (significant && periods[period]) {
+					significant--;
+				}
+				else if (!significant) {
+					periods[period] = 0;
+				}
+			}
+		}
+		return periods;
+	}
 	});
 
-}(jQuery));
-(function($) {
-			
-	/**
-	 * Hourly Counter Clock Face
-	 *
-	 * This class will generate an hourly counter for FlipClock.js. An
-	 * hour counter will track hours, minutes, and seconds. If number of
-	 * available digits is exceeded in the count, a new digit will be 
-	 * created.
-	 *
-	 * @param  object  The parent FlipClock.Factory object
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	FlipClock.HourlyCounterFace = FlipClock.Face.extend({
-			
-		// clearExcessDigits: true,
+})(jQuery);
 
-		/**
-		 * Constructor
-		 *
-		 * @param  object  The parent FlipClock.Factory object
-		 * @param  object  An object of properties to override the default	
-		 */
-		 
-		constructor: function(factory, options) {
-			this.base(factory, options);
-		},
-		
-		/**
-		 * Build the clock face
-		 */
-		
-		build: function(excludeHours, time) {
-			var t = this;
-			var children = this.factory.$el.find('ul');
-			
-			time = time ? time : this.factory.time.getHourCounter();
-			
-			if(time.length > children.length) {
-				$.each(time, function(i, digit) {
-					t.createList(digit);
-				});
-			}
-			
-			$(this.createDivider('Seconds')).insertBefore(this.lists[this.lists.length - 2].$el);
-			$(this.createDivider('Minutes')).insertBefore(this.lists[this.lists.length - 4].$el);
-			
-			if(!excludeHours) {
-				$(this.createDivider('Hours', true)).insertBefore(this.lists[0].$el);
-			}
-			
-			this.base();
-		},
-		
-		/**
-		 * Flip the clock face
-		 */
-		 
-		flip: function(time, doNotAddPlayClass) {
-			if(!time) {
-				time = this.factory.time.getHourCounter();
-			}	
+/*!
+ * Parse JavaScript SDK
+ * Version: 1.4.2
+ * Built: Thu Apr 09 2015 17:20:31
+ * http://parse.com
+ *
+ * Copyright 2015 Parse, Inc.
+ * The Parse JavaScript SDK is freely distributable under the MIT license.
+ *
+ * Includes: Underscore.js
+ * Copyright 2009-2012 Jeremy Ashkenas, DocumentCloud Inc.
+ * Released under the MIT license.
+ */
+(function(root) {
+  root.Parse = root.Parse || {};
+  root.Parse.VERSION = "js1.4.2";
+}(this));
+//     Underscore.js 1.4.4
+//     http://underscorejs.org
+//     (c) 2009-2013 Jeremy Ashkenas, DocumentCloud Inc.
+//     Underscore may be freely distributed under the MIT license.
 
-			this.autoIncrement();
-		
-			this.base(time, doNotAddPlayClass);
-		},
+(function() {
 
-		/**
-		 * Append a newly created list to the clock
-		 */
+  // Baseline setup
+  // --------------
 
-		appendDigitToClock: function(obj) {
-			this.base(obj);
+  // Establish the root object, `window` in the browser, or `global` on the server.
+  var root = this;
 
-			this.dividers[0].insertAfter(this.dividers[0].next());
-		}
-		
-	});
-	
-}(jQuery));
-(function($) {
-		
-	/**
-	 * Minute Counter Clock Face
-	 *
-	 * This class will generate a minute counter for FlipClock.js. A
-	 * minute counter will track minutes and seconds. If an hour is 
-	 * reached, the counter will reset back to 0. (4 digits max)
-	 *
-	 * @param  object  The parent FlipClock.Factory object
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	FlipClock.MinuteCounterFace = FlipClock.HourlyCounterFace.extend({
+  // Save the previous value of the `_` variable.
+  var previousUnderscore = root._;
 
-		clearExcessDigits: false,
+  // Establish the object that gets returned to break out of a loop iteration.
+  var breaker = {};
 
-		/**
-		 * Constructor
-		 *
-		 * @param  object  The parent FlipClock.Factory object
-		 * @param  object  An object of properties to override the default	
-		 */
-		 
-		constructor: function(factory, options) {
-			this.base(factory, options);
-		},
-		
-		/**
-		 * Build the clock face	
-		 */
-		 
-		build: function() {
-			this.base(true, this.factory.time.getMinuteCounter());
-		},
-		
-		/**
-		 * Flip the clock face
-		 */
-		 
-		flip: function(time, doNotAddPlayClass) {
-			if(!time) {
-				time = this.factory.time.getMinuteCounter();
-			}
+  // Save bytes in the minified (but not gzipped) version:
+  var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
 
-			this.base(time, doNotAddPlayClass);
-		}
+  // Create quick reference variables for speed access to core prototypes.
+  var push             = ArrayProto.push,
+      slice            = ArrayProto.slice,
+      concat           = ArrayProto.concat,
+      toString         = ObjProto.toString,
+      hasOwnProperty   = ObjProto.hasOwnProperty;
 
-	});
-	
-}(jQuery));
-(function($) {
-		
-	/**
-	 * Twelve Hour Clock Face
-	 *
-	 * This class will generate a twelve hour clock for FlipClock.js
-	 *
-	 * @param  object  The parent FlipClock.Factory object
-	 * @param  object  An object of properties to override the default	
-	 */
-	 
-	FlipClock.TwelveHourClockFace = FlipClock.TwentyFourHourClockFace.extend({
-		
-		/**
-		 * The meridium jQuery DOM object
-		 */
-		 
-		meridium: false,
-		
-		/**
-		 * The meridium text as string for easy access
-		 */
-		 
-		meridiumText: 'AM',
-					
-		/**
-		 * Build the clock face
-		 *
-		 * @param  object  Pass the time that should be used to display on the clock.	
-		 */
-		 
-		build: function() {
-			var t = this;
+  // All **ECMAScript 5** native function implementations that we hope to use
+  // are declared here.
+  var
+    nativeForEach      = ArrayProto.forEach,
+    nativeMap          = ArrayProto.map,
+    nativeReduce       = ArrayProto.reduce,
+    nativeReduceRight  = ArrayProto.reduceRight,
+    nativeFilter       = ArrayProto.filter,
+    nativeEvery        = ArrayProto.every,
+    nativeSome         = ArrayProto.some,
+    nativeIndexOf      = ArrayProto.indexOf,
+    nativeLastIndexOf  = ArrayProto.lastIndexOf,
+    nativeIsArray      = Array.isArray,
+    nativeKeys         = Object.keys,
+    nativeBind         = FuncProto.bind;
 
-			var time = this.factory.time.getTime(false, this.showSeconds);
+  // Create a safe reference to the Underscore object for use below.
+  var _ = function(obj) {
+    if (obj instanceof _) return obj;
+    if (!(this instanceof _)) return new _(obj);
+    this._wrapped = obj;
+  };
 
-			this.base(time);			
-			this.meridiumText = this.getMeridium();			
-			this.meridium = $([
-				'<ul class="flip-clock-meridium">',
-					'<li>',
-						'<a href="#">'+this.meridiumText+'</a>',
-					'</li>',
-				'</ul>'
-			].join(''));
-						
-			this.meridium.insertAfter(this.lists[this.lists.length-1].$el);
-		},
-		
-		/**
-		 * Flip the clock face
-		 */
-		 
-		flip: function(time, doNotAddPlayClass) {			
-			if(this.meridiumText != this.getMeridium()) {
-				this.meridiumText = this.getMeridium();
-				this.meridium.find('a').html(this.meridiumText);	
-			}
-			this.base(this.factory.time.getTime(false, this.showSeconds), doNotAddPlayClass);	
-		},
-		
-		/**
-		 * Get the current meridium
-		 *
-		 * @return  string  Returns the meridium (AM|PM)
-		 */
-		 
-		getMeridium: function() {
-			return new Date().getHours() >= 12 ? 'PM' : 'AM';
-		},
-		
-		/**
-		 * Is it currently in the post-medirium?
-		 *
-		 * @return  bool  Returns true or false
-		 */
-		 
-		isPM: function() {
-			return this.getMeridium() == 'PM' ? true : false;
-		},
+  // Export the Underscore object for **Node.js**, with
+  // backwards-compatibility for the old `require()` API. If we're in
+  // the browser, add `_` as a global object via a string identifier,
+  // for Closure Compiler "advanced" mode.
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+      exports = module.exports = _;
+    }
+    exports._ = _;
+  } else {
+    root._ = _;
+  }
 
-		/**
-		 * Is it currently before the post-medirium?
-		 *
-		 * @return  bool  Returns true or false
-		 */
-		 
-		isAM: function() {
-			return this.getMeridium() == 'AM' ? true : false;
-		}
-				
-	});
-	
-}(jQuery));
-(function($) {
+  // Current version.
+  _.VERSION = '1.4.4';
 
-    /**
-     * FlipClock Arabic Language Pack
-     *
-     * This class will be used to translate tokens into the Arabic language.
-     *
-     */
+  // Collection Functions
+  // --------------------
 
-    FlipClock.Lang.Arabic = {
+  // The cornerstone, an `each` implementation, aka `forEach`.
+  // Handles objects with the built-in `forEach`, arrays, and raw objects.
+  // Delegates to **ECMAScript 5**'s native `forEach` if available.
+  var each = _.each = _.forEach = function(obj, iterator, context) {
+    if (obj == null) return;
+    if (nativeForEach && obj.forEach === nativeForEach) {
+      obj.forEach(iterator, context);
+    } else if (obj.length === +obj.length) {
+      for (var i = 0, l = obj.length; i < l; i++) {
+        if (iterator.call(context, obj[i], i, obj) === breaker) return;
+      }
+    } else {
+      for (var key in obj) {
+        if (_.has(obj, key)) {
+          if (iterator.call(context, obj[key], key, obj) === breaker) return;
+        }
+      }
+    }
+  };
 
-      'years'   : 'سنوات',
-      'months'  : 'شهور',
-      'days'    : 'أيام',
-      'hours'   : 'ساعات',
-      'minutes' : 'دقائق',
-      'seconds' : 'ثواني'
+  // Return the results of applying the iterator to each element.
+  // Delegates to **ECMAScript 5**'s native `map` if available.
+  _.map = _.collect = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    if (nativeMap && obj.map === nativeMap) return obj.map(iterator, context);
+    each(obj, function(value, index, list) {
+      results[results.length] = iterator.call(context, value, index, list);
+    });
+    return results;
+  };
 
+  var reduceError = 'Reduce of empty array with no initial value';
+
+  // **Reduce** builds up a single result from a list of values, aka `inject`,
+  // or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
+  _.reduce = _.foldl = _.inject = function(obj, iterator, memo, context) {
+    var initial = arguments.length > 2;
+    if (obj == null) obj = [];
+    if (nativeReduce && obj.reduce === nativeReduce) {
+      if (context) iterator = _.bind(iterator, context);
+      return initial ? obj.reduce(iterator, memo) : obj.reduce(iterator);
+    }
+    each(obj, function(value, index, list) {
+      if (!initial) {
+        memo = value;
+        initial = true;
+      } else {
+        memo = iterator.call(context, memo, value, index, list);
+      }
+    });
+    if (!initial) throw new TypeError(reduceError);
+    return memo;
+  };
+
+  // The right-associative version of reduce, also known as `foldr`.
+  // Delegates to **ECMAScript 5**'s native `reduceRight` if available.
+  _.reduceRight = _.foldr = function(obj, iterator, memo, context) {
+    var initial = arguments.length > 2;
+    if (obj == null) obj = [];
+    if (nativeReduceRight && obj.reduceRight === nativeReduceRight) {
+      if (context) iterator = _.bind(iterator, context);
+      return initial ? obj.reduceRight(iterator, memo) : obj.reduceRight(iterator);
+    }
+    var length = obj.length;
+    if (length !== +length) {
+      var keys = _.keys(obj);
+      length = keys.length;
+    }
+    each(obj, function(value, index, list) {
+      index = keys ? keys[--length] : --length;
+      if (!initial) {
+        memo = obj[index];
+        initial = true;
+      } else {
+        memo = iterator.call(context, memo, obj[index], index, list);
+      }
+    });
+    if (!initial) throw new TypeError(reduceError);
+    return memo;
+  };
+
+  // Return the first value which passes a truth test. Aliased as `detect`.
+  _.find = _.detect = function(obj, iterator, context) {
+    var result;
+    any(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) {
+        result = value;
+        return true;
+      }
+    });
+    return result;
+  };
+
+  // Return all the elements that pass a truth test.
+  // Delegates to **ECMAScript 5**'s native `filter` if available.
+  // Aliased as `select`.
+  _.filter = _.select = function(obj, iterator, context) {
+    var results = [];
+    if (obj == null) return results;
+    if (nativeFilter && obj.filter === nativeFilter) return obj.filter(iterator, context);
+    each(obj, function(value, index, list) {
+      if (iterator.call(context, value, index, list)) results[results.length] = value;
+    });
+    return results;
+  };
+
+  // Return all the elements for which a truth test fails.
+  _.reject = function(obj, iterator, context) {
+    return _.filter(obj, function(value, index, list) {
+      return !iterator.call(context, value, index, list);
+    }, context);
+  };
+
+  // Determine whether all of the elements match a truth test.
+  // Delegates to **ECMAScript 5**'s native `every` if available.
+  // Aliased as `all`.
+  _.every = _.all = function(obj, iterator, context) {
+    iterator || (iterator = _.identity);
+    var result = true;
+    if (obj == null) return result;
+    if (nativeEvery && obj.every === nativeEvery) return obj.every(iterator, context);
+    each(obj, function(value, index, list) {
+      if (!(result = result && iterator.call(context, value, index, list))) return breaker;
+    });
+    return !!result;
+  };
+
+  // Determine if at least one element in the object matches a truth test.
+  // Delegates to **ECMAScript 5**'s native `some` if available.
+  // Aliased as `any`.
+  var any = _.some = _.any = function(obj, iterator, context) {
+    iterator || (iterator = _.identity);
+    var result = false;
+    if (obj == null) return result;
+    if (nativeSome && obj.some === nativeSome) return obj.some(iterator, context);
+    each(obj, function(value, index, list) {
+      if (result || (result = iterator.call(context, value, index, list))) return breaker;
+    });
+    return !!result;
+  };
+
+  // Determine if the array or object contains a given value (using `===`).
+  // Aliased as `include`.
+  _.contains = _.include = function(obj, target) {
+    if (obj == null) return false;
+    if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
+    return any(obj, function(value) {
+      return value === target;
+    });
+  };
+
+  // Invoke a method (with arguments) on every item in a collection.
+  _.invoke = function(obj, method) {
+    var args = slice.call(arguments, 2);
+    var isFunc = _.isFunction(method);
+    return _.map(obj, function(value) {
+      return (isFunc ? method : value[method]).apply(value, args);
+    });
+  };
+
+  // Convenience version of a common use case of `map`: fetching a property.
+  _.pluck = function(obj, key) {
+    return _.map(obj, function(value){ return value[key]; });
+  };
+
+  // Convenience version of a common use case of `filter`: selecting only objects
+  // containing specific `key:value` pairs.
+  _.where = function(obj, attrs, first) {
+    if (_.isEmpty(attrs)) return first ? null : [];
+    return _[first ? 'find' : 'filter'](obj, function(value) {
+      for (var key in attrs) {
+        if (attrs[key] !== value[key]) return false;
+      }
+      return true;
+    });
+  };
+
+  // Convenience version of a common use case of `find`: getting the first object
+  // containing specific `key:value` pairs.
+  _.findWhere = function(obj, attrs) {
+    return _.where(obj, attrs, true);
+  };
+
+  // Return the maximum element or (element-based computation).
+  // Can't optimize arrays of integers longer than 65,535 elements.
+  // See: https://bugs.webkit.org/show_bug.cgi?id=80797
+  _.max = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj) && obj[0] === +obj[0] && obj.length < 65535) {
+      return Math.max.apply(Math, obj);
+    }
+    if (!iterator && _.isEmpty(obj)) return -Infinity;
+    var result = {computed : -Infinity, value: -Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed >= result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Return the minimum element (or element-based computation).
+  _.min = function(obj, iterator, context) {
+    if (!iterator && _.isArray(obj) && obj[0] === +obj[0] && obj.length < 65535) {
+      return Math.min.apply(Math, obj);
+    }
+    if (!iterator && _.isEmpty(obj)) return Infinity;
+    var result = {computed : Infinity, value: Infinity};
+    each(obj, function(value, index, list) {
+      var computed = iterator ? iterator.call(context, value, index, list) : value;
+      computed < result.computed && (result = {value : value, computed : computed});
+    });
+    return result.value;
+  };
+
+  // Shuffle an array.
+  _.shuffle = function(obj) {
+    var rand;
+    var index = 0;
+    var shuffled = [];
+    each(obj, function(value) {
+      rand = _.random(index++);
+      shuffled[index - 1] = shuffled[rand];
+      shuffled[rand] = value;
+    });
+    return shuffled;
+  };
+
+  // An internal function to generate lookup iterators.
+  var lookupIterator = function(value) {
+    return _.isFunction(value) ? value : function(obj){ return obj[value]; };
+  };
+
+  // Sort the object's values by a criterion produced by an iterator.
+  _.sortBy = function(obj, value, context) {
+    var iterator = lookupIterator(value);
+    return _.pluck(_.map(obj, function(value, index, list) {
+      return {
+        value : value,
+        index : index,
+        criteria : iterator.call(context, value, index, list)
+      };
+    }).sort(function(left, right) {
+      var a = left.criteria;
+      var b = right.criteria;
+      if (a !== b) {
+        if (a > b || a === void 0) return 1;
+        if (a < b || b === void 0) return -1;
+      }
+      return left.index < right.index ? -1 : 1;
+    }), 'value');
+  };
+
+  // An internal function used for aggregate "group by" operations.
+  var group = function(obj, value, context, behavior) {
+    var result = {};
+    var iterator = lookupIterator(value || _.identity);
+    each(obj, function(value, index) {
+      var key = iterator.call(context, value, index, obj);
+      behavior(result, key, value);
+    });
+    return result;
+  };
+
+  // Groups the object's values by a criterion. Pass either a string attribute
+  // to group by, or a function that returns the criterion.
+  _.groupBy = function(obj, value, context) {
+    return group(obj, value, context, function(result, key, value) {
+      (_.has(result, key) ? result[key] : (result[key] = [])).push(value);
+    });
+  };
+
+  // Counts instances of an object that group by a certain criterion. Pass
+  // either a string attribute to count by, or a function that returns the
+  // criterion.
+  _.countBy = function(obj, value, context) {
+    return group(obj, value, context, function(result, key) {
+      if (!_.has(result, key)) result[key] = 0;
+      result[key]++;
+    });
+  };
+
+  // Use a comparator function to figure out the smallest index at which
+  // an object should be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iterator, context) {
+    iterator = iterator == null ? _.identity : lookupIterator(iterator);
+    var value = iterator.call(context, obj);
+    var low = 0, high = array.length;
+    while (low < high) {
+      var mid = (low + high) >>> 1;
+      iterator.call(context, array[mid]) < value ? low = mid + 1 : high = mid;
+    }
+    return low;
+  };
+
+  // Safely convert anything iterable into a real, live array.
+  _.toArray = function(obj) {
+    if (!obj) return [];
+    if (_.isArray(obj)) return slice.call(obj);
+    if (obj.length === +obj.length) return _.map(obj, _.identity);
+    return _.values(obj);
+  };
+
+  // Return the number of elements in an object.
+  _.size = function(obj) {
+    if (obj == null) return 0;
+    return (obj.length === +obj.length) ? obj.length : _.keys(obj).length;
+  };
+
+  // Array Functions
+  // ---------------
+
+  // Get the first element of an array. Passing **n** will return the first N
+  // values in the array. Aliased as `head` and `take`. The **guard** check
+  // allows it to work with `_.map`.
+  _.first = _.head = _.take = function(array, n, guard) {
+    if (array == null) return void 0;
+    return (n != null) && !guard ? slice.call(array, 0, n) : array[0];
+  };
+
+  // Returns everything but the last entry of the array. Especially useful on
+  // the arguments object. Passing **n** will return all the values in
+  // the array, excluding the last N. The **guard** check allows it to work with
+  // `_.map`.
+  _.initial = function(array, n, guard) {
+    return slice.call(array, 0, array.length - ((n == null) || guard ? 1 : n));
+  };
+
+  // Get the last element of an array. Passing **n** will return the last N
+  // values in the array. The **guard** check allows it to work with `_.map`.
+  _.last = function(array, n, guard) {
+    if (array == null) return void 0;
+    if ((n != null) && !guard) {
+      return slice.call(array, Math.max(array.length - n, 0));
+    } else {
+      return array[array.length - 1];
+    }
+  };
+
+  // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
+  // Especially useful on the arguments object. Passing an **n** will return
+  // the rest N values in the array. The **guard**
+  // check allows it to work with `_.map`.
+  _.rest = _.tail = _.drop = function(array, n, guard) {
+    return slice.call(array, (n == null) || guard ? 1 : n);
+  };
+
+  // Trim out all falsy values from an array.
+  _.compact = function(array) {
+    return _.filter(array, _.identity);
+  };
+
+  // Internal implementation of a recursive `flatten` function.
+  var flatten = function(input, shallow, output) {
+    each(input, function(value) {
+      if (_.isArray(value)) {
+        shallow ? push.apply(output, value) : flatten(value, shallow, output);
+      } else {
+        output.push(value);
+      }
+    });
+    return output;
+  };
+
+  // Return a completely flattened version of an array.
+  _.flatten = function(array, shallow) {
+    return flatten(array, shallow, []);
+  };
+
+  // Return a version of the array that does not contain the specified value(s).
+  _.without = function(array) {
+    return _.difference(array, slice.call(arguments, 1));
+  };
+
+  // Produce a duplicate-free version of the array. If the array has already
+  // been sorted, you have the option of using a faster algorithm.
+  // Aliased as `unique`.
+  _.uniq = _.unique = function(array, isSorted, iterator, context) {
+    if (_.isFunction(isSorted)) {
+      context = iterator;
+      iterator = isSorted;
+      isSorted = false;
+    }
+    var initial = iterator ? _.map(array, iterator, context) : array;
+    var results = [];
+    var seen = [];
+    each(initial, function(value, index) {
+      if (isSorted ? (!index || seen[seen.length - 1] !== value) : !_.contains(seen, value)) {
+        seen.push(value);
+        results.push(array[index]);
+      }
+    });
+    return results;
+  };
+
+  // Produce an array that contains the union: each distinct element from all of
+  // the passed-in arrays.
+  _.union = function() {
+    return _.uniq(concat.apply(ArrayProto, arguments));
+  };
+
+  // Produce an array that contains every item shared between all the
+  // passed-in arrays.
+  _.intersection = function(array) {
+    var rest = slice.call(arguments, 1);
+    return _.filter(_.uniq(array), function(item) {
+      return _.every(rest, function(other) {
+        return _.indexOf(other, item) >= 0;
+      });
+    });
+  };
+
+  // Take the difference between one array and a number of other arrays.
+  // Only the elements present in just the first array will remain.
+  _.difference = function(array) {
+    var rest = concat.apply(ArrayProto, slice.call(arguments, 1));
+    return _.filter(array, function(value){ return !_.contains(rest, value); });
+  };
+
+  // Zip together multiple lists into a single array -- elements that share
+  // an index go together.
+  _.zip = function() {
+    var args = slice.call(arguments);
+    var length = _.max(_.pluck(args, 'length'));
+    var results = new Array(length);
+    for (var i = 0; i < length; i++) {
+      results[i] = _.pluck(args, "" + i);
+    }
+    return results;
+  };
+
+  // Converts lists into objects. Pass either a single array of `[key, value]`
+  // pairs, or two parallel arrays of the same length -- one of keys, and one of
+  // the corresponding values.
+  _.object = function(list, values) {
+    if (list == null) return {};
+    var result = {};
+    for (var i = 0, l = list.length; i < l; i++) {
+      if (values) {
+        result[list[i]] = values[i];
+      } else {
+        result[list[i][0]] = list[i][1];
+      }
+    }
+    return result;
+  };
+
+  // If the browser doesn't supply us with indexOf (I'm looking at you, **MSIE**),
+  // we need this function. Return the position of the first occurrence of an
+  // item in an array, or -1 if the item is not included in the array.
+  // Delegates to **ECMAScript 5**'s native `indexOf` if available.
+  // If the array is large and already in sort order, pass `true`
+  // for **isSorted** to use binary search.
+  _.indexOf = function(array, item, isSorted) {
+    if (array == null) return -1;
+    var i = 0, l = array.length;
+    if (isSorted) {
+      if (typeof isSorted == 'number') {
+        i = (isSorted < 0 ? Math.max(0, l + isSorted) : isSorted);
+      } else {
+        i = _.sortedIndex(array, item);
+        return array[i] === item ? i : -1;
+      }
+    }
+    if (nativeIndexOf && array.indexOf === nativeIndexOf) return array.indexOf(item, isSorted);
+    for (; i < l; i++) if (array[i] === item) return i;
+    return -1;
+  };
+
+  // Delegates to **ECMAScript 5**'s native `lastIndexOf` if available.
+  _.lastIndexOf = function(array, item, from) {
+    if (array == null) return -1;
+    var hasIndex = from != null;
+    if (nativeLastIndexOf && array.lastIndexOf === nativeLastIndexOf) {
+      return hasIndex ? array.lastIndexOf(item, from) : array.lastIndexOf(item);
+    }
+    var i = (hasIndex ? from : array.length);
+    while (i--) if (array[i] === item) return i;
+    return -1;
+  };
+
+  // Generate an integer Array containing an arithmetic progression. A port of
+  // the native Python `range()` function. See
+  // [the Python documentation](http://docs.python.org/library/functions.html#range).
+  _.range = function(start, stop, step) {
+    if (arguments.length <= 1) {
+      stop = start || 0;
+      start = 0;
+    }
+    step = arguments[2] || 1;
+
+    var len = Math.max(Math.ceil((stop - start) / step), 0);
+    var idx = 0;
+    var range = new Array(len);
+
+    while(idx < len) {
+      range[idx++] = start;
+      start += step;
+    }
+
+    return range;
+  };
+
+  // Function (ahem) Functions
+  // ------------------
+
+  // Create a function bound to a given object (assigning `this`, and arguments,
+  // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
+  // available.
+  _.bind = function(func, context) {
+    if (func.bind === nativeBind && nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
+    var args = slice.call(arguments, 2);
+    return function() {
+      return func.apply(context, args.concat(slice.call(arguments)));
+    };
+  };
+
+  // Partially apply a function by creating a version that has had some of its
+  // arguments pre-filled, without changing its dynamic `this` context.
+  _.partial = function(func) {
+    var args = slice.call(arguments, 1);
+    return function() {
+      return func.apply(this, args.concat(slice.call(arguments)));
+    };
+  };
+
+  // Bind all of an object's methods to that object. Useful for ensuring that
+  // all callbacks defined on an object belong to it.
+  _.bindAll = function(obj) {
+    var funcs = slice.call(arguments, 1);
+    if (funcs.length === 0) funcs = _.functions(obj);
+    each(funcs, function(f) { obj[f] = _.bind(obj[f], obj); });
+    return obj;
+  };
+
+  // Memoize an expensive function by storing its results.
+  _.memoize = function(func, hasher) {
+    var memo = {};
+    hasher || (hasher = _.identity);
+    return function() {
+      var key = hasher.apply(this, arguments);
+      return _.has(memo, key) ? memo[key] : (memo[key] = func.apply(this, arguments));
+    };
+  };
+
+  // Delays a function for the given number of milliseconds, and then calls
+  // it with the arguments supplied.
+  _.delay = function(func, wait) {
+    var args = slice.call(arguments, 2);
+    return setTimeout(function(){ return func.apply(null, args); }, wait);
+  };
+
+  // Defers a function, scheduling it to run after the current call stack has
+  // cleared.
+  _.defer = function(func) {
+    return _.delay.apply(_, [func, 1].concat(slice.call(arguments, 1)));
+  };
+
+  // Returns a function, that, when invoked, will only be triggered at most once
+  // during a given window of time.
+  _.throttle = function(func, wait) {
+    var context, args, timeout, result;
+    var previous = 0;
+    var later = function() {
+      previous = new Date;
+      timeout = null;
+      result = func.apply(context, args);
+    };
+    return function() {
+      var now = new Date;
+      var remaining = wait - (now - previous);
+      context = this;
+      args = arguments;
+      if (remaining <= 0) {
+        clearTimeout(timeout);
+        timeout = null;
+        previous = now;
+        result = func.apply(context, args);
+      } else if (!timeout) {
+        timeout = setTimeout(later, remaining);
+      }
+      return result;
+    };
+  };
+
+  // Returns a function, that, as long as it continues to be invoked, will not
+  // be triggered. The function will be called after it stops being called for
+  // N milliseconds. If `immediate` is passed, trigger the function on the
+  // leading edge, instead of the trailing.
+  _.debounce = function(func, wait, immediate) {
+    var timeout, result;
+    return function() {
+      var context = this, args = arguments;
+      var later = function() {
+        timeout = null;
+        if (!immediate) result = func.apply(context, args);
+      };
+      var callNow = immediate && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) result = func.apply(context, args);
+      return result;
+    };
+  };
+
+  // Returns a function that will be executed at most one time, no matter how
+  // often you call it. Useful for lazy initialization.
+  _.once = function(func) {
+    var ran = false, memo;
+    return function() {
+      if (ran) return memo;
+      ran = true;
+      memo = func.apply(this, arguments);
+      func = null;
+      return memo;
+    };
+  };
+
+  // Returns the first function passed as an argument to the second,
+  // allowing you to adjust arguments, run code before and after, and
+  // conditionally execute the original function.
+  _.wrap = function(func, wrapper) {
+    return function() {
+      var args = [func];
+      push.apply(args, arguments);
+      return wrapper.apply(this, args);
+    };
+  };
+
+  // Returns a function that is the composition of a list of functions, each
+  // consuming the return value of the function that follows.
+  _.compose = function() {
+    var funcs = arguments;
+    return function() {
+      var args = arguments;
+      for (var i = funcs.length - 1; i >= 0; i--) {
+        args = [funcs[i].apply(this, args)];
+      }
+      return args[0];
+    };
+  };
+
+  // Returns a function that will only be executed after being called N times.
+  _.after = function(times, func) {
+    if (times <= 0) return func();
+    return function() {
+      if (--times < 1) {
+        return func.apply(this, arguments);
+      }
+    };
+  };
+
+  // Object Functions
+  // ----------------
+
+  // Retrieve the names of an object's properties.
+  // Delegates to **ECMAScript 5**'s native `Object.keys`
+  _.keys = nativeKeys || function(obj) {
+    if (obj !== Object(obj)) throw new TypeError('Invalid object');
+    var keys = [];
+    for (var key in obj) if (_.has(obj, key)) keys[keys.length] = key;
+    return keys;
+  };
+
+  // Retrieve the values of an object's properties.
+  _.values = function(obj) {
+    var values = [];
+    for (var key in obj) if (_.has(obj, key)) values.push(obj[key]);
+    return values;
+  };
+
+  // Convert an object into a list of `[key, value]` pairs.
+  _.pairs = function(obj) {
+    var pairs = [];
+    for (var key in obj) if (_.has(obj, key)) pairs.push([key, obj[key]]);
+    return pairs;
+  };
+
+  // Invert the keys and values of an object. The values must be serializable.
+  _.invert = function(obj) {
+    var result = {};
+    for (var key in obj) if (_.has(obj, key)) result[obj[key]] = key;
+    return result;
+  };
+
+  // Return a sorted list of the function names available on the object.
+  // Aliased as `methods`
+  _.functions = _.methods = function(obj) {
+    var names = [];
+    for (var key in obj) {
+      if (_.isFunction(obj[key])) names.push(key);
+    }
+    return names.sort();
+  };
+
+  // Extend a given object with all the properties in passed-in object(s).
+  _.extend = function(obj) {
+    each(slice.call(arguments, 1), function(source) {
+      if (source) {
+        for (var prop in source) {
+          obj[prop] = source[prop];
+        }
+      }
+    });
+    return obj;
+  };
+
+  // Return a copy of the object only containing the whitelisted properties.
+  _.pick = function(obj) {
+    var copy = {};
+    var keys = concat.apply(ArrayProto, slice.call(arguments, 1));
+    each(keys, function(key) {
+      if (key in obj) copy[key] = obj[key];
+    });
+    return copy;
+  };
+
+   // Return a copy of the object without the blacklisted properties.
+  _.omit = function(obj) {
+    var copy = {};
+    var keys = concat.apply(ArrayProto, slice.call(arguments, 1));
+    for (var key in obj) {
+      if (!_.contains(keys, key)) copy[key] = obj[key];
+    }
+    return copy;
+  };
+
+  // Fill in a given object with default properties.
+  _.defaults = function(obj) {
+    each(slice.call(arguments, 1), function(source) {
+      if (source) {
+        for (var prop in source) {
+          if (obj[prop] == null) obj[prop] = source[prop];
+        }
+      }
+    });
+    return obj;
+  };
+
+  // Create a (shallow-cloned) duplicate of an object.
+  _.clone = function(obj) {
+    if (!_.isObject(obj)) return obj;
+    return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
+  };
+
+  // Invokes interceptor with the obj, and then returns obj.
+  // The primary purpose of this method is to "tap into" a method chain, in
+  // order to perform operations on intermediate results within the chain.
+  _.tap = function(obj, interceptor) {
+    interceptor(obj);
+    return obj;
+  };
+
+  // Internal recursive comparison function for `isEqual`.
+  var eq = function(a, b, aStack, bStack) {
+    // Identical objects are equal. `0 === -0`, but they aren't identical.
+    // See the Harmony `egal` proposal: http://wiki.ecmascript.org/doku.php?id=harmony:egal.
+    if (a === b) return a !== 0 || 1 / a == 1 / b;
+    // A strict comparison is necessary because `null == undefined`.
+    if (a == null || b == null) return a === b;
+    // Unwrap any wrapped objects.
+    if (a instanceof _) a = a._wrapped;
+    if (b instanceof _) b = b._wrapped;
+    // Compare `[[Class]]` names.
+    var className = toString.call(a);
+    if (className != toString.call(b)) return false;
+    switch (className) {
+      // Strings, numbers, dates, and booleans are compared by value.
+      case '[object String]':
+        // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
+        // equivalent to `new String("5")`.
+        return a == String(b);
+      case '[object Number]':
+        // `NaN`s are equivalent, but non-reflexive. An `egal` comparison is performed for
+        // other numeric values.
+        return a != +a ? b != +b : (a == 0 ? 1 / a == 1 / b : a == +b);
+      case '[object Date]':
+      case '[object Boolean]':
+        // Coerce dates and booleans to numeric primitive values. Dates are compared by their
+        // millisecond representations. Note that invalid dates with millisecond representations
+        // of `NaN` are not equivalent.
+        return +a == +b;
+      // RegExps are compared by their source patterns and flags.
+      case '[object RegExp]':
+        return a.source == b.source &&
+               a.global == b.global &&
+               a.multiline == b.multiline &&
+               a.ignoreCase == b.ignoreCase;
+    }
+    if (typeof a != 'object' || typeof b != 'object') return false;
+    // Assume equality for cyclic structures. The algorithm for detecting cyclic
+    // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+    var length = aStack.length;
+    while (length--) {
+      // Linear search. Performance is inversely proportional to the number of
+      // unique nested structures.
+      if (aStack[length] == a) return bStack[length] == b;
+    }
+    // Add the first object to the stack of traversed objects.
+    aStack.push(a);
+    bStack.push(b);
+    var size = 0, result = true;
+    // Recursively compare objects and arrays.
+    if (className == '[object Array]') {
+      // Compare array lengths to determine if a deep comparison is necessary.
+      size = a.length;
+      result = size == b.length;
+      if (result) {
+        // Deep compare the contents, ignoring non-numeric properties.
+        while (size--) {
+          if (!(result = eq(a[size], b[size], aStack, bStack))) break;
+        }
+      }
+    } else {
+      // Objects with different constructors are not equivalent, but `Object`s
+      // from different frames are.
+      var aCtor = a.constructor, bCtor = b.constructor;
+      if (aCtor !== bCtor && !(_.isFunction(aCtor) && (aCtor instanceof aCtor) &&
+                               _.isFunction(bCtor) && (bCtor instanceof bCtor))) {
+        return false;
+      }
+      // Deep compare objects.
+      for (var key in a) {
+        if (_.has(a, key)) {
+          // Count the expected number of properties.
+          size++;
+          // Deep compare each member.
+          if (!(result = _.has(b, key) && eq(a[key], b[key], aStack, bStack))) break;
+        }
+      }
+      // Ensure that both objects contain the same number of properties.
+      if (result) {
+        for (key in b) {
+          if (_.has(b, key) && !(size--)) break;
+        }
+        result = !size;
+      }
+    }
+    // Remove the first object from the stack of traversed objects.
+    aStack.pop();
+    bStack.pop();
+    return result;
+  };
+
+  // Perform a deep comparison to check if two objects are equal.
+  _.isEqual = function(a, b) {
+    return eq(a, b, [], []);
+  };
+
+  // Is a given array, string, or object empty?
+  // An "empty" object has no enumerable own-properties.
+  _.isEmpty = function(obj) {
+    if (obj == null) return true;
+    if (_.isArray(obj) || _.isString(obj)) return obj.length === 0;
+    for (var key in obj) if (_.has(obj, key)) return false;
+    return true;
+  };
+
+  // Is a given value a DOM element?
+  _.isElement = function(obj) {
+    return !!(obj && obj.nodeType === 1);
+  };
+
+  // Is a given value an array?
+  // Delegates to ECMA5's native Array.isArray
+  _.isArray = nativeIsArray || function(obj) {
+    return toString.call(obj) == '[object Array]';
+  };
+
+  // Is a given variable an object?
+  _.isObject = function(obj) {
+    return obj === Object(obj);
+  };
+
+  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp.
+  each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'], function(name) {
+    _['is' + name] = function(obj) {
+      return toString.call(obj) == '[object ' + name + ']';
+    };
+  });
+
+  // Define a fallback version of the method in browsers (ahem, IE), where
+  // there isn't any inspectable "Arguments" type.
+  if (!_.isArguments(arguments)) {
+    _.isArguments = function(obj) {
+      return !!(obj && _.has(obj, 'callee'));
+    };
+  }
+
+  // Optimize `isFunction` if appropriate.
+  if (typeof (/./) !== 'function') {
+    _.isFunction = function(obj) {
+      return typeof obj === 'function';
+    };
+  }
+
+  // Is a given object a finite number?
+  _.isFinite = function(obj) {
+    return isFinite(obj) && !isNaN(parseFloat(obj));
+  };
+
+  // Is the given value `NaN`? (NaN is the only number which does not equal itself).
+  _.isNaN = function(obj) {
+    return _.isNumber(obj) && obj != +obj;
+  };
+
+  // Is a given value a boolean?
+  _.isBoolean = function(obj) {
+    return obj === true || obj === false || toString.call(obj) == '[object Boolean]';
+  };
+
+  // Is a given value equal to null?
+  _.isNull = function(obj) {
+    return obj === null;
+  };
+
+  // Is a given variable undefined?
+  _.isUndefined = function(obj) {
+    return obj === void 0;
+  };
+
+  // Shortcut function for checking if an object has a given property directly
+  // on itself (in other words, not on a prototype).
+  _.has = function(obj, key) {
+    return hasOwnProperty.call(obj, key);
+  };
+
+  // Utility Functions
+  // -----------------
+
+  // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
+  // previous owner. Returns a reference to the Underscore object.
+  _.noConflict = function() {
+    root._ = previousUnderscore;
+    return this;
+  };
+
+  // Keep the identity function around for default iterators.
+  _.identity = function(value) {
+    return value;
+  };
+
+  // Run a function **n** times.
+  _.times = function(n, iterator, context) {
+    var accum = Array(n);
+    for (var i = 0; i < n; i++) accum[i] = iterator.call(context, i);
+    return accum;
+  };
+
+  // Return a random integer between min and max (inclusive).
+  _.random = function(min, max) {
+    if (max == null) {
+      max = min;
+      min = 0;
+    }
+    return min + Math.floor(Math.random() * (max - min + 1));
+  };
+
+  // List of HTML entities for escaping.
+  var entityMap = {
+    escape: {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;'
+    }
+  };
+  entityMap.unescape = _.invert(entityMap.escape);
+
+  // Regexes containing the keys and values listed immediately above.
+  var entityRegexes = {
+    escape:   new RegExp('[' + _.keys(entityMap.escape).join('') + ']', 'g'),
+    unescape: new RegExp('(' + _.keys(entityMap.unescape).join('|') + ')', 'g')
+  };
+
+  // Functions for escaping and unescaping strings to/from HTML interpolation.
+  _.each(['escape', 'unescape'], function(method) {
+    _[method] = function(string) {
+      if (string == null) return '';
+      return ('' + string).replace(entityRegexes[method], function(match) {
+        return entityMap[method][match];
+      });
+    };
+  });
+
+  // If the value of the named property is a function then invoke it;
+  // otherwise, return it.
+  _.result = function(object, property) {
+    if (object == null) return null;
+    var value = object[property];
+    return _.isFunction(value) ? value.call(object) : value;
+  };
+
+  // Add your own custom functions to the Underscore object.
+  _.mixin = function(obj) {
+    each(_.functions(obj), function(name){
+      var func = _[name] = obj[name];
+      _.prototype[name] = function() {
+        var args = [this._wrapped];
+        push.apply(args, arguments);
+        return result.call(this, func.apply(_, args));
+      };
+    });
+  };
+
+  // Generate a unique integer id (unique within the entire client session).
+  // Useful for temporary DOM ids.
+  var idCounter = 0;
+  _.uniqueId = function(prefix) {
+    var id = ++idCounter + '';
+    return prefix ? prefix + id : id;
+  };
+
+  // By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  _.templateSettings = {
+    evaluate    : /<%([\s\S]+?)%>/g,
+    interpolate : /<%=([\s\S]+?)%>/g,
+    escape      : /<%-([\s\S]+?)%>/g
+  };
+
+  // When customizing `templateSettings`, if you don't want to define an
+  // interpolation, evaluation or escaping regex, we need one that is
+  // guaranteed not to match.
+  var noMatch = /(.)^/;
+
+  // Certain characters need to be escaped so that they can be put into a
+  // string literal.
+  var escapes = {
+    "'":      "'",
+    '\\':     '\\',
+    '\r':     'r',
+    '\n':     'n',
+    '\t':     't',
+    '\u2028': 'u2028',
+    '\u2029': 'u2029'
+  };
+
+  var escaper = /\\|'|\r|\n|\t|\u2028|\u2029/g;
+
+  // JavaScript micro-templating, similar to John Resig's implementation.
+  // Underscore templating handles arbitrary delimiters, preserves whitespace,
+  // and correctly escapes quotes within interpolated code.
+  _.template = function(text, data, settings) {
+    var render;
+    settings = _.defaults({}, settings, _.templateSettings);
+
+    // Combine delimiters into one regular expression via alternation.
+    var matcher = new RegExp([
+      (settings.escape || noMatch).source,
+      (settings.interpolate || noMatch).source,
+      (settings.evaluate || noMatch).source
+    ].join('|') + '|$', 'g');
+
+    // Compile the template source, escaping string literals appropriately.
+    var index = 0;
+    var source = "__p+='";
+    text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
+      source += text.slice(index, offset)
+        .replace(escaper, function(match) { return '\\' + escapes[match]; });
+
+      if (escape) {
+        source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
+      }
+      if (interpolate) {
+        source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
+      }
+      if (evaluate) {
+        source += "';\n" + evaluate + "\n__p+='";
+      }
+      index = offset + match.length;
+      return match;
+    });
+    source += "';\n";
+
+    // If a variable is not specified, place data values in local scope.
+    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+
+    source = "var __t,__p='',__j=Array.prototype.join," +
+      "print=function(){__p+=__j.call(arguments,'');};\n" +
+      source + "return __p;\n";
+
+    try {
+      render = new Function(settings.variable || 'obj', '_', source);
+    } catch (e) {
+      e.source = source;
+      throw e;
+    }
+
+    if (data) return render(data, _);
+    var template = function(data) {
+      return render.call(this, data, _);
     };
 
-    /* Create various aliases for convenience */
+    // Provide the compiled function source as a convenience for precompilation.
+    template.source = 'function(' + (settings.variable || 'obj') + '){\n' + source + '}';
 
-    FlipClock.Lang['ar']      = FlipClock.Lang.Arabic;
-    FlipClock.Lang['ar-ar']   = FlipClock.Lang.Arabic;
-    FlipClock.Lang['arabic']  = FlipClock.Lang.Arabic;
-
-}(jQuery));
-(function($) {
-		
-	/**
-	 * FlipClock Danish Language Pack
-	 *
-	 * This class will used to translate tokens into the Danish language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.Danish = {
-		
-		'years'   : 'År',
-		'months'  : 'Måneder',
-		'days'    : 'Dage',
-		'hours'   : 'Timer',
-		'minutes' : 'Minutter',
-		'seconds' : 'Sekunder'	
-
-	};
-	
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['da']     = FlipClock.Lang.Danish;
-	FlipClock.Lang['da-dk']  = FlipClock.Lang.Danish;
-	FlipClock.Lang['danish'] = FlipClock.Lang.Danish;
-
-}(jQuery));
-(function($) {
-		
-	/**
-	 * FlipClock German Language Pack
-	 *
-	 * This class will used to translate tokens into the German language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.German = {
-		
-		'years'   : 'Jahre',
-		'months'  : 'Monate',
-		'days'    : 'Tage',
-		'hours'   : 'Stunden',
-		'minutes' : 'Minuten',
-		'seconds' : 'Sekunden'	
- 
-	};
-	
-	/* Create various aliases for convenience */
- 
-	FlipClock.Lang['de']     = FlipClock.Lang.German;
-	FlipClock.Lang['de-de']  = FlipClock.Lang.German;
-	FlipClock.Lang['german'] = FlipClock.Lang.German;
- 
-}(jQuery));
-(function($) {
-		
-	/**
-	 * FlipClock English Language Pack
-	 *
-	 * This class will used to translate tokens into the English language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.English = {
-		
-		'years'   : 'Years',
-		'months'  : 'Months',
-		'days'    : 'Days',
-		'hours'   : 'Hours',
-		'minutes' : 'Minutes',
-		'seconds' : 'Seconds'	
-
-	};
-	
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['en']      = FlipClock.Lang.English;
-	FlipClock.Lang['en-us']   = FlipClock.Lang.English;
-	FlipClock.Lang['english'] = FlipClock.Lang.English;
-
-}(jQuery));
-(function($) {
-		
-	/**
-	 * FlipClock Spanish Language Pack
-	 *
-	 * This class will used to translate tokens into the Spanish language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.Spanish = {
-		
-		'years'   : 'A&#241;os',
-		'months'  : 'Meses',
-		'days'    : 'D&#237;as',
-		'hours'   : 'Horas',
-		'minutes' : 'Minutos',
-		'seconds' : 'Segundo'	
-
-	};
-	
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['es']      = FlipClock.Lang.Spanish;
-	FlipClock.Lang['es-es']   = FlipClock.Lang.Spanish;
-	FlipClock.Lang['spanish'] = FlipClock.Lang.Spanish;
-
-}(jQuery));
-(function($) {
-		
-	/**
-	 * FlipClock Finnish Language Pack
-	 *
-	 * This class will used to translate tokens into the Finnish language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.Finnish = {
-		
-		'years'   : 'Vuotta',
-		'months'  : 'Kuukautta',
-		'days'    : 'Päivää',
-		'hours'   : 'Tuntia',
-		'minutes' : 'Minuuttia',
-		'seconds' : 'Sekuntia'	
-
-	};
-	
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['fi']      = FlipClock.Lang.Finnish;
-	FlipClock.Lang['fi-fi']   = FlipClock.Lang.Finnish;
-	FlipClock.Lang['finnish'] = FlipClock.Lang.Finnish;
-
-}(jQuery));
-
-(function($) {
-
-  /**
-   * FlipClock Canadian French Language Pack
-   *
-   * This class will used to translate tokens into the Canadian French language.
-   *
-   */
-
-  FlipClock.Lang.French = {
-
-    'years'   : 'Ans',
-    'months'  : 'Mois',
-    'days'    : 'Jours',
-    'hours'   : 'Heures',
-    'minutes' : 'Minutes',
-    'seconds' : 'Secondes'
-
+    return template;
   };
 
-  /* Create various aliases for convenience */
-
-  FlipClock.Lang['fr']      = FlipClock.Lang.French;
-  FlipClock.Lang['fr-ca']   = FlipClock.Lang.French;
-  FlipClock.Lang['french']  = FlipClock.Lang.French;
-
-}(jQuery));
-
-(function($) {
-		
-	/**
-	 * FlipClock Italian Language Pack
-	 *
-	 * This class will used to translate tokens into the Italian language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.Italian = {
-		
-		'years'   : 'Anni',
-		'months'  : 'Mesi',
-		'days'    : 'Giorni',
-		'hours'   : 'Ore',
-		'minutes' : 'Minuti',
-		'seconds' : 'Secondi'	
-
-	};
-	
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['it']      = FlipClock.Lang.Italian;
-	FlipClock.Lang['it-it']   = FlipClock.Lang.Italian;
-	FlipClock.Lang['italian'] = FlipClock.Lang.Italian;
-	
-}(jQuery));
-
-(function($) {
-
-  /**
-   * FlipClock Latvian Language Pack
-   *
-   * This class will used to translate tokens into the Latvian language.
-   *
-   */
-
-  FlipClock.Lang.Latvian = {
-
-    'years'   : 'Gadi',
-    'months'  : 'Mēneši',
-    'days'    : 'Dienas',
-    'hours'   : 'Stundas',
-    'minutes' : 'Minūtes',
-    'seconds' : 'Sekundes'
-
+  // Add a "chain" function, which will delegate to the wrapper.
+  _.chain = function(obj) {
+    return _(obj).chain();
   };
 
-  /* Create various aliases for convenience */
+  // OOP
+  // ---------------
+  // If Underscore is called as a function, it returns a wrapped object that
+  // can be used OO-style. This wrapper holds altered versions of all the
+  // underscore functions. Wrapped objects may be chained.
 
-  FlipClock.Lang['lv']      = FlipClock.Lang.Latvian;
-  FlipClock.Lang['lv-lv']   = FlipClock.Lang.Latvian;
-  FlipClock.Lang['latvian'] = FlipClock.Lang.Latvian;
+  // Helper function to continue chaining intermediate results.
+  var result = function(obj) {
+    return this._chain ? _(obj).chain() : obj;
+  };
 
-}(jQuery));
-(function($) {
+  // Add all of the Underscore functions to the wrapper object.
+  _.mixin(_);
 
+  // Add all mutator Array functions to the wrapper.
+  each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      var obj = this._wrapped;
+      method.apply(obj, arguments);
+      if ((name == 'shift' || name == 'splice') && obj.length === 0) delete obj[0];
+      return result.call(this, obj);
+    };
+  });
+
+  // Add all accessor Array functions to the wrapper.
+  each(['concat', 'join', 'slice'], function(name) {
+    var method = ArrayProto[name];
+    _.prototype[name] = function() {
+      return result.call(this, method.apply(this._wrapped, arguments));
+    };
+  });
+
+  _.extend(_.prototype, {
+
+    // Start chaining a wrapped Underscore object.
+    chain: function() {
+      this._chain = true;
+      return this;
+    },
+
+    // Extracts the result from a wrapped and chained object.
+    value: function() {
+      return this._wrapped;
+    }
+
+  });
+
+}).call(this);
+
+/*global _: false, $: false, localStorage: false, process: true,
+  XMLHttpRequest: false, XDomainRequest: false, exports: false,
+  require: false, setTimeout: true */
+(function(root) {
+  root.Parse = root.Parse || {};
+  /**
+   * Contains all Parse API classes and functions.
+   * @name Parse
+   * @namespace
+   *
+   * Contains all Parse API classes and functions.
+   */
+  var Parse = root.Parse;
+
+  var req = typeof(require) === 'function' ? require : null;
+  // Load references to other dependencies
+  if (typeof(XMLHttpRequest) !== 'undefined') {
+    Parse.XMLHttpRequest = XMLHttpRequest;
+  } else if (typeof(require) === 'function' &&
+      typeof(require.ensure) === 'undefined') {
+    Parse.XMLHttpRequest = req('xmlhttprequest').XMLHttpRequest;
+  }
+  // Import Parse's local copy of underscore.
+  if (typeof(exports) !== 'undefined' && exports._) {
+    // We're running in a CommonJS environment
+    Parse._ = exports._.noConflict();
+    exports.Parse = Parse;
+  } else {
+    Parse._ = _.noConflict();
+  }
+
+  // If jQuery or Zepto has been included, grab a reference to it.
+  if (typeof($) !== "undefined") {
+    Parse.$ = $;
+  }
+
+  // Helpers
+  // -------
+
+  // Shared empty constructor function to aid in prototype-chain creation.
+  var EmptyConstructor = function() {};
+
+  
+  // Helper function to correctly set up the prototype chain, for subclasses.
+  // Similar to `goog.inherits`, but uses a hash of prototype properties and
+  // class properties to be extended.
+  var inherits = function(parent, protoProps, staticProps) {
+    var child;
+
+    // The constructor function for the new subclass is either defined by you
+    // (the "constructor" property in your `extend` definition), or defaulted
+    // by us to simply call the parent's constructor.
+    if (protoProps && protoProps.hasOwnProperty('constructor')) {
+      child = protoProps.constructor;
+    } else {
+      /** @ignore */
+      child = function(){ parent.apply(this, arguments); };
+    }
+
+    // Inherit class (static) properties from parent.
+    Parse._.extend(child, parent);
+
+    // Set the prototype chain to inherit from `parent`, without calling
+    // `parent`'s constructor function.
+    EmptyConstructor.prototype = parent.prototype;
+    child.prototype = new EmptyConstructor();
+
+    // Add prototype properties (instance properties) to the subclass,
+    // if supplied.
+    if (protoProps) {
+      Parse._.extend(child.prototype, protoProps);
+    }
+
+    // Add static properties to the constructor function, if supplied.
+    if (staticProps) {
+      Parse._.extend(child, staticProps);
+    }
+
+    // Correctly set child's `prototype.constructor`.
+    child.prototype.constructor = child;
+
+    // Set a convenience property in case the parent's prototype is
+    // needed later.
+    child.__super__ = parent.prototype;
+
+    return child;
+  };
+
+  // Set the server for Parse to talk to.
+  Parse.serverURL = "https://api.parse.com";
+
+  // Check whether we are running in Node.js.
+  if (typeof(process) !== "undefined" &&
+      process.versions &&
+      process.versions.node) {
+    Parse._isNode = true;
+  }
+
+  /**
+   * Call this method first to set up your authentication tokens for Parse.
+   * You can get your keys from the Data Browser on parse.com.
+   * @param {String} applicationId Your Parse Application ID.
+   * @param {String} javaScriptKey Your Parse JavaScript Key.
+   * @param {String} masterKey (optional) Your Parse Master Key. (Node.js only!)
+   */
+  Parse.initialize = function(applicationId, javaScriptKey, masterKey) {
+    if (masterKey) {
+      throw "Parse.initialize() was passed a Master Key, which is only " +
+        "allowed from within Node.js.";
+    }
+    Parse._initialize(applicationId, javaScriptKey);
+  };
+
+  /**
+   * Call this method first to set up master authentication tokens for Parse.
+   * This method is for Parse's own private use.
+   * @param {String} applicationId Your Parse Application ID.
+   * @param {String} javaScriptKey Your Parse JavaScript Key.
+   * @param {String} masterKey Your Parse Master Key.
+   */
+  Parse._initialize = function(applicationId, javaScriptKey, masterKey) {
+    Parse.applicationId = applicationId;
+    Parse.javaScriptKey = javaScriptKey;
+    Parse.masterKey = masterKey;
+    Parse._useMasterKey = false;
+  };
+
+  // If we're running in node.js, allow using the master key.
+  if (Parse._isNode) {
+    Parse.initialize = Parse._initialize;
+
+    Parse.Cloud = Parse.Cloud || {};
     /**
-     * FlipClock Dutch Language Pack
-     *
-     * This class will used to translate tokens into the Dutch language.
+     * Switches the Parse SDK to using the Master key.  The Master key grants
+     * priveleged access to the data in Parse and can be used to bypass ACLs and
+     * other restrictions that are applied to the client SDKs.
+     * <p><strong><em>Available in Cloud Code and Node.js only.</em></strong>
+     * </p>
      */
+    Parse.Cloud.useMasterKey = function() {
+      Parse._useMasterKey = true;
+    };
+  }
 
-    FlipClock.Lang.Dutch = {
+  /**
+   * Returns prefix for Storage keys used by this instance of Parse.
+   * @param {String} path The relative suffix to append to it.
+   *     null or undefined is treated as the empty string.
+   * @return {String} The full key name.
+   */
+  Parse._getParsePath = function(path) {
+    if (!Parse.applicationId) {
+      throw "You need to call Parse.initialize before using Parse.";
+    }
+    if (!path) {
+      path = "";
+    }
+    if (!Parse._.isString(path)) {
+      throw "Tried to get a Storage path that wasn't a String.";
+    }
+    if (path[0] === "/") {
+      path = path.substring(1);
+    }
+    return "Parse/" + Parse.applicationId + "/" + path;
+  };
 
-        'years'   : 'Jaren',
-        'months'  : 'Maanden',
-        'days'    : 'Dagen',
-        'hours'   : 'Uren',
-        'minutes' : 'Minuten',
-        'seconds' : 'Seconden'
+  /**
+   * Returns a Promise that is resolved with the unique string for this app on
+   * this machine.
+   * Gets reset when Storage is cleared.
+   */
+  Parse._installationId = null;
+  Parse._getInstallationId = function() {
+    // See if it's cached in RAM.
+    if (Parse._installationId) {
+      return Parse.Promise.as(Parse._installationId);
+    }
 
+    // Try to get it from Storage.
+    var path = Parse._getParsePath("installationId");
+    return (Parse.Storage.getItemAsync(path)
+      .then(function(value) {
+        Parse._installationId = value;
+
+        if (!Parse._installationId || Parse._installationId === "") {
+          // It wasn't in Storage, so create a new one.
+          var hexOctet = function() {
+            return (
+              Math.floor((1+Math.random())*0x10000).toString(16).substring(1)
+            );
+          };
+          Parse._installationId = (
+            hexOctet() + hexOctet() + "-" +
+            hexOctet() + "-" +
+            hexOctet() + "-" +
+            hexOctet() + "-" +
+            hexOctet() + hexOctet() + hexOctet());
+          return Parse.Storage.setItemAsync(path, Parse._installationId);
+        }
+
+        return Parse.Promise.as(Parse._installationId);
+      })
+    );
+  };
+
+  Parse._parseDate = function(iso8601) {
+    var regexp = new RegExp(
+      "^([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2})" + "T" +
+      "([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})" +
+      "(.([0-9]+))?" + "Z$");
+    var match = regexp.exec(iso8601);
+    if (!match) {
+      return null;
+    }
+
+    var year = match[1] || 0;
+    var month = (match[2] || 1) - 1;
+    var day = match[3] || 0;
+    var hour = match[4] || 0;
+    var minute = match[5] || 0;
+    var second = match[6] || 0;
+    var milli = match[8] || 0;
+
+    return new Date(Date.UTC(year, month, day, hour, minute, second, milli));
+  };
+
+  Parse._ajaxIE8 = function(method, url, data) {
+    var promise = new Parse.Promise();
+    var xdr = new XDomainRequest();
+    xdr.onload = function() {
+      var response;
+      try {
+        response = JSON.parse(xdr.responseText);
+      } catch (e) {
+        promise.reject(e);
+      }
+      if (response) {
+        promise.resolve(response);
+      }
+    };
+    xdr.onerror = xdr.ontimeout = function() {
+      // Let's fake a real error message.
+      var fakeResponse = {
+        responseText: JSON.stringify({
+          code: Parse.Error.X_DOMAIN_REQUEST,
+          error: "IE's XDomainRequest does not supply error info."
+        })
+      };
+      promise.reject(fakeResponse);
+    };
+    xdr.onprogress = function() {};
+    xdr.open(method, url);
+    xdr.send(data);
+    return promise;
+  };
+
+  Parse._useXDomainRequest = function() {
+    if (typeof(XDomainRequest) !== "undefined") {
+      // We're in IE 8+.
+      if ('withCredentials' in new XMLHttpRequest()) {
+        // We're in IE 10+.
+        return false;
+      }
+      return true;
+    }
+    return false;
+  };
+
+  
+  Parse._ajax = function(method, url, data, success, error) {
+    var options = {
+      success: success,
+      error: error
     };
 
-    /* Create various aliases for convenience */
+    if (Parse._useXDomainRequest()) {
+      return Parse._ajaxIE8(method, url, data)._thenRunCallbacks(options);
+    }
 
-    FlipClock.Lang['nl']      = FlipClock.Lang.Dutch;
-    FlipClock.Lang['nl-be']   = FlipClock.Lang.Dutch;
-    FlipClock.Lang['dutch']   = FlipClock.Lang.Dutch;
+    var promise = new Parse.Promise();
+    var attempts = 0;
 
-}(jQuery));
+    var dispatch = function() {
+      var handled = false;
+      var xhr = new Parse.XMLHttpRequest();
 
-(function($) {
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (handled) {
+            return;
+          }
+          handled = true;
 
-	/**
-	 * FlipClock Norwegian-Bokmål Language Pack
-	 *
-	 * This class will used to translate tokens into the Norwegian language.
-	 *	
-	 */
+          if (xhr.status >= 200 && xhr.status < 300) {
+            var response;
+            try {
+              response = JSON.parse(xhr.responseText);
+            } catch (e) {
+              promise.reject(e);
+            }
+            if (response) {
+              promise.resolve(response, xhr.status, xhr);
+            }
+          } else if (xhr.status >= 500) { // Retry on 5XX
+            if (++attempts < 5) {
+              // Exponentially-growing delay
+              var delay = Math.round(
+                Math.random() * 125 * Math.pow(2, attempts)
+              );
+              setTimeout(dispatch, delay);
+            } else {
+              // After 5 retries, fail
+              promise.reject(xhr);
+            }
+          } else {
+            promise.reject(xhr);
+          }
+        }
+      };
 
-	FlipClock.Lang.Norwegian = {
+      xhr.open(method, url, true);
+      xhr.setRequestHeader('Content-Type', 'text/plain');  // avoid pre-flight.
+      if (Parse._isNode) {
+        // Add a special user agent just for request from node.js.
+        xhr.setRequestHeader("User-Agent",
+                             "Parse/" + Parse.VERSION +
+                             " (NodeJS " + process.versions.node + ")");
+      }
+      xhr.send(data);
+    };
 
-		'years'   : 'År',
-		'months'  : 'Måneder',
-		'days'    : 'Dager',
-		'hours'   : 'Timer',
-		'minutes' : 'Minutter',
-		'seconds' : 'Sekunder'	
-
-	};
-
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['no']      = FlipClock.Lang.Norwegian;
-	FlipClock.Lang['nb']      = FlipClock.Lang.Norwegian;
-	FlipClock.Lang['no-nb']   = FlipClock.Lang.Norwegian;
-	FlipClock.Lang['norwegian'] = FlipClock.Lang.Norwegian;
-
-}(jQuery));
-
-(function($) {
-
-	/**
-	 * FlipClock Portuguese Language Pack
-	 *
-	 * This class will used to translate tokens into the Portuguese language.
-	 *
-	 */
-
-	FlipClock.Lang.Portuguese = {
-
-		'years'   : 'Anos',
-		'months'  : 'Meses',
-		'days'    : 'Dias',
-		'hours'   : 'Horas',
-		'minutes' : 'Minutos',
-		'seconds' : 'Segundos'
-
-	};
-
-	/* Create various aliases for convenience */
-
-	FlipClock.Lang['pt']         = FlipClock.Lang.Portuguese;
-	FlipClock.Lang['pt-br']      = FlipClock.Lang.Portuguese;
-	FlipClock.Lang['portuguese'] = FlipClock.Lang.Portuguese;
-
-}(jQuery));
-(function($) {
-
-  /**
-   * FlipClock Russian Language Pack
-   *
-   * This class will used to translate tokens into the Russian language.
-   *
-   */
-
-  FlipClock.Lang.Russian = {
-
-    'years'   : 'лет',
-    'months'  : 'месяцев',
-    'days'    : 'дней',
-    'hours'   : 'часов',
-    'minutes' : 'минут',
-    'seconds' : 'секунд'
-
+    dispatch();
+    return promise._thenRunCallbacks(options); 
   };
 
-  /* Create various aliases for convenience */
+  // A self-propagating extend function.
+  Parse._extend = function(protoProps, classProps) {
+    var child = inherits(this, protoProps, classProps);
+    child.extend = this.extend;
+    return child;
+  };
 
-  FlipClock.Lang['ru']      = FlipClock.Lang.Russian;
-  FlipClock.Lang['ru-ru']   = FlipClock.Lang.Russian;
-  FlipClock.Lang['russian']  = FlipClock.Lang.Russian;
+  /**
+   * Options:
+   *   route: is classes, users, login, etc.
+   *   objectId: null if there is no associated objectId.
+   *   method: the http method for the REST API.
+   *   dataObject: the payload as an object, or null if there is none.
+   *   useMasterKey: overrides whether to use the master key if set.
+   * @ignore
+   */
+  Parse._request = function(options) {
+    var route = options.route;
+    var className = options.className;
+    var objectId = options.objectId;
+    var method = options.method;
+    var useMasterKey = options.useMasterKey;
+    var sessionToken = options.sessionToken;
+    var dataObject = options.data;
 
-}(jQuery));
-(function($) {
-		
-	/**
-	 * FlipClock Swedish Language Pack
-	 *
-	 * This class will used to translate tokens into the Swedish language.
-	 *	
-	 */
-	 
-	FlipClock.Lang.Swedish = {
-		
-		'years'   : 'År',
-		'months'  : 'Månader',
-		'days'    : 'Dagar',
-		'hours'   : 'Timmar',
-		'minutes' : 'Minuter',
-		'seconds' : 'Sekunder'	
+    if (!Parse.applicationId) {
+      throw "You must specify your applicationId using Parse.initialize.";
+    }
 
-	};
-	
-	/* Create various aliases for convenience */
+    if (!Parse.javaScriptKey && !Parse.masterKey) {
+      throw "You must specify a key using Parse.initialize.";
+    }
 
-	FlipClock.Lang['sv']      = FlipClock.Lang.Swedish;
-	FlipClock.Lang['sv-se']   = FlipClock.Lang.Swedish;
-	FlipClock.Lang['swedish'] = FlipClock.Lang.Swedish;
+    
+    if (route !== "batch" &&
+        route !== "classes" &&
+        route !== "events" &&
+        route !== "files" &&
+        route !== "functions" &&
+        route !== "login" &&
+        route !== "logout" &&
+        route !== "push" &&
+        route !== "requestPasswordReset" &&
+        route !== "rest_verify_analytics" &&
+        route !== "users" &&
+        route !== "jobs" &&
+        route !== "config" &&
+        route !== "sessions" &&
+        route !== "upgradeToRevocableSession") {
+      throw "Bad route: '" + route + "'.";
+    }
 
-}(jQuery));
+    var url = Parse.serverURL;
+    if (url.charAt(url.length - 1) !== "/") {
+      url += "/";
+    }
+    url += "1/" + route;
+    if (className) {
+      url += "/" + className;
+    }
+    if (objectId) {
+      url += "/" + objectId;
+    }
+
+    dataObject = Parse._.clone(dataObject || {});
+    if (method !== "POST") {
+      dataObject._method = method;
+      method = "POST";
+    }
+
+    if (Parse._.isUndefined(useMasterKey)) {
+      useMasterKey = Parse._useMasterKey;
+    }
+
+    dataObject._ApplicationId = Parse.applicationId;
+    if (!useMasterKey) {
+      dataObject._JavaScriptKey = Parse.javaScriptKey;
+    } else {
+      dataObject._MasterKey = Parse.masterKey;
+    }
+
+    dataObject._ClientVersion = Parse.VERSION;
+
+    return Parse._getInstallationId().then(function(iid) {
+      dataObject._InstallationId = iid;
+
+      if (sessionToken) {
+        return Parse.Promise.as({ _sessionToken: sessionToken });
+      }
+
+      return Parse.User._currentAsync();
+    }).then(function(currentUser) {
+      if (currentUser && currentUser._sessionToken) {
+        dataObject._SessionToken = currentUser._sessionToken;
+      }
+
+      if (Parse.User._isRevocableSessionEnabled) {
+        dataObject._RevocableSession = '1';
+      }
+
+      var data = JSON.stringify(dataObject);
+
+      return Parse._ajax(method, url, data);
+    }).then(null, function(response) {
+      // Transform the error into an instance of Parse.Error by trying to parse
+      // the error string as JSON.
+      var error;
+      if (response && response.responseText) {
+        try {
+          var errorJSON = JSON.parse(response.responseText);
+          error = new Parse.Error(errorJSON.code, errorJSON.error);
+        } catch (e) {
+          // If we fail to parse the error text, that's okay.
+          error = new Parse.Error(
+              Parse.Error.INVALID_JSON,
+              "Received an error with invalid JSON from Parse: " +
+                  response.responseText);
+        }
+      } else {
+        error = new Parse.Error(
+            Parse.Error.CONNECTION_FAILED,
+            "XMLHttpRequest failed: " + JSON.stringify(response));
+      }
+      // By explicitly returning a rejected Promise, this will work with
+      // either jQuery or Promises/A semantics.
+      return Parse.Promise.error(error);
+    });
+  };
+
+  // Helper function to get a value from a Backbone object as a property
+  // or as a function.
+  Parse._getValue = function(object, prop) {
+    if (!(object && object[prop])) {
+      return null;
+    }
+    return Parse._.isFunction(object[prop]) ? object[prop]() : object[prop];
+  };
+
+  /**
+   * Converts a value in a Parse Object into the appropriate representation.
+   * This is the JS equivalent of Java's Parse.maybeReferenceAndEncode(Object)
+   * if seenObjects is falsey. Otherwise any Parse.Objects not in
+   * seenObjects will be fully embedded rather than encoded
+   * as a pointer.  This array will be used to prevent going into an infinite
+   * loop because we have circular references.  If seenObjects
+   * is set, then none of the Parse Objects that are serialized can be dirty.
+   */
+  Parse._encode = function(value, seenObjects, disallowObjects) {
+    var _ = Parse._;
+    if (value instanceof Parse.Object) {
+      if (disallowObjects) {
+        throw "Parse.Objects not allowed here";
+      }
+      if (!seenObjects || _.include(seenObjects, value) || !value._hasData) {
+        return value._toPointer();
+      }
+      if (!value.dirty()) {
+        seenObjects = seenObjects.concat(value);
+        return Parse._encode(value._toFullJSON(seenObjects),
+                             seenObjects,
+                             disallowObjects);
+      }
+      throw "Tried to save an object with a pointer to a new, unsaved object.";
+    }
+    if (value instanceof Parse.ACL) {
+      return value.toJSON();
+    }
+    if (_.isDate(value)) {
+      return { "__type": "Date", "iso": value.toJSON() };
+    }
+    if (value instanceof Parse.GeoPoint) {
+      return value.toJSON();
+    }
+    if (_.isArray(value)) {
+      return _.map(value, function(x) {
+        return Parse._encode(x, seenObjects, disallowObjects);
+      });
+    }
+    if (_.isRegExp(value)) {
+      return value.source;
+    }
+    if (value instanceof Parse.Relation) {
+      return value.toJSON();
+    }
+    if (value instanceof Parse.Op) {
+      return value.toJSON();
+    }
+    if (value instanceof Parse.File) {
+      if (!value.url()) {
+        throw "Tried to save an object containing an unsaved file.";
+      }
+      return {
+        __type: "File",
+        name: value.name(),
+        url: value.url()
+      };
+    }
+    if (_.isObject(value)) {
+      var output = {};
+      Parse._objectEach(value, function(v, k) {
+        output[k] = Parse._encode(v, seenObjects, disallowObjects);
+      });
+      return output;
+    }
+    return value;
+  };
+
+  /**
+   * The inverse function of Parse._encode.
+   * TODO: make decode not mutate value.
+   */
+  Parse._decode = function(key, value) {
+    var _ = Parse._;
+    if (!_.isObject(value)) {
+      return value;
+    }
+    if (_.isArray(value)) {
+      Parse._arrayEach(value, function(v, k) {
+        value[k] = Parse._decode(k, v);
+      });
+      return value;
+    }
+    if (value instanceof Parse.Object) {
+      return value;
+    }
+    if (value instanceof Parse.File) {
+      return value;
+    }
+    if (value instanceof Parse.Op) {
+      return value;
+    }
+    if (value.__op) {
+      return Parse.Op._decode(value);
+    }
+    if (value.__type === "Pointer" && value.className) {
+      var pointer = Parse.Object._create(value.className);
+      pointer._finishFetch({ objectId: value.objectId }, false);
+      return pointer;
+    }
+    if (value.__type === "Object" && value.className) {
+      // It's an Object included in a query result.
+      var className = value.className;
+      delete value.__type;
+      delete value.className;
+      var object = Parse.Object._create(className);
+      object._finishFetch(value, true);
+      return object;
+    }
+    if (value.__type === "Date") {
+      return Parse._parseDate(value.iso);
+    }
+    if (value.__type === "GeoPoint") {
+      return new Parse.GeoPoint({
+        latitude: value.latitude,
+        longitude: value.longitude
+      });
+    }
+    if (key === "ACL") {
+      if (value instanceof Parse.ACL) {
+        return value;
+      }
+      return new Parse.ACL(value);
+    }
+    if (value.__type === "Relation") {
+      var relation = new Parse.Relation(null, key);
+      relation.targetClassName = value.className;
+      return relation;
+    }
+    if (value.__type === "File") {
+      var file = new Parse.File(value.name);
+      file._url = value.url;
+      return file;
+    }
+    Parse._objectEach(value, function(v, k) {
+      value[k] = Parse._decode(k, v);
+    });
+    return value;
+  };
+
+  Parse._arrayEach = Parse._.each;
+
+  /**
+   * Does a deep traversal of every item in object, calling func on every one.
+   * @param {Object} object The object or array to traverse deeply.
+   * @param {Function} func The function to call for every item. It will
+   *     be passed the item as an argument. If it returns a truthy value, that
+   *     value will replace the item in its parent container.
+   * @returns {} the result of calling func on the top-level object itself.
+   */
+  Parse._traverse = function(object, func, seen) {
+    if (object instanceof Parse.Object) {
+      seen = seen || [];
+      if (Parse._.indexOf(seen, object) >= 0) {
+        // We've already visited this object in this call.
+        return;
+      }
+      seen.push(object);
+      Parse._traverse(object.attributes, func, seen);
+      return func(object);
+    }
+    if (object instanceof Parse.Relation || object instanceof Parse.File) {
+      // Nothing needs to be done, but we don't want to recurse into the
+      // object's parent infinitely, so we catch this case.
+      return func(object);
+    }
+    if (Parse._.isArray(object)) {
+      Parse._.each(object, function(child, index) {
+        var newChild = Parse._traverse(child, func, seen);
+        if (newChild) {
+          object[index] = newChild;
+        }
+      });
+      return func(object);
+    }
+    if (Parse._.isObject(object)) {
+      Parse._each(object, function(child, key) {
+        var newChild = Parse._traverse(child, func, seen);
+        if (newChild) {
+          object[key] = newChild;
+        }
+      });
+      return func(object);
+    }
+    return func(object);
+  };
+
+  /**
+   * This is like _.each, except:
+   * * it doesn't work for so-called array-like objects,
+   * * it does work for dictionaries with a "length" attribute.
+   */
+  Parse._objectEach = Parse._each = function(obj, callback) {
+    var _ = Parse._;
+    if (_.isObject(obj)) {
+      _.each(_.keys(obj), function(key) {
+        callback(obj[key], key);
+      });
+    } else {
+      _.each(obj, callback);
+    }
+  };
+
+  // Helper function to check null or undefined.
+  Parse._isNullOrUndefined = function(x) {
+    return Parse._.isNull(x) || Parse._.isUndefined(x);
+  };
+}(this));
+
+/* global require: false, localStorage: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  
+  var Storage = {
+    async: false,
+  };
+
+  var hasLocalStorage = (typeof localStorage !== 'undefined');
+  if (hasLocalStorage) {
+    try {
+      localStorage.setItem('supported', true);
+      localStorage.removeItem('supported');
+    } catch(e) {
+      hasLocalStorage = false;
+    }
+  }
+  if (hasLocalStorage) {
+    Storage.getItem = function(path) {
+      return localStorage.getItem(path);
+    };
+
+    Storage.setItem = function(path, value) {
+      return localStorage.setItem(path, value);
+    };
+
+    Storage.removeItem = function(path) {
+      return localStorage.removeItem(path);
+    };
+
+    Storage.clear = function() {
+      return localStorage.clear();
+    };
+  } else if (typeof require === 'function') {
+    var AsyncStorage;
+    try {
+      AsyncStorage = eval("require('AsyncStorage')"); // jshint ignore:line
+
+      Storage.async = true;
+
+      Storage.getItemAsync = function(path) {
+        var p = new Parse.Promise();
+        AsyncStorage.getItem(path, function(err, value) {
+          if (err) {
+            p.reject(err);
+          } else {
+            p.resolve(value);
+          }
+        });
+        return p;
+      };
+
+      Storage.setItemAsync = function(path, value) {
+        var p = new Parse.Promise();
+        AsyncStorage.setItem(path, value, function(err) {
+          if (err) {
+            p.reject(err);
+          } else {
+            p.resolve(value);
+          }
+        });
+        return p;
+      };
+
+      Storage.removeItemAsync = function(path) {
+        var p = new Parse.Promise();
+        AsyncStorage.removeItem(path, function(err) {
+          if (err) {
+            p.reject(err);
+          } else {
+            p.resolve();
+          }
+        });
+        return p;
+      };
+
+      Storage.clear = function() {
+        AsyncStorage.clear();
+      };
+    } catch (e) { }
+  }
+  if (!Storage.async && !Storage.getItem) {
+    var memMap = Storage.inMemoryMap = {};
+    Storage.getItem = function(path) {
+      if (memMap.hasOwnProperty(path)) {
+        return memMap[path];
+      }
+      return null;
+    };
+
+    Storage.setItem = function(path, value) {
+      memMap[path] = String(value);
+    };
+
+    Storage.removeItem = function(path) {
+      delete memMap[path];
+    };
+
+    Storage.clear = function() {
+      for (var key in memMap) {
+        if (memMap.hasOwnProperty(key)) {
+          delete memMap[key];
+        }
+      }
+    };
+  }
+
+  // We can use synchronous methods from async scenarios, but not vice-versa
+  if (!Storage.async) {
+    Storage.getItemAsync = function(path) {
+      return Parse.Promise.as(
+        Storage.getItem(path)
+      );
+    };
+
+    Storage.setItemAsync = function(path, value) {
+      Storage.setItem(path, value);
+      return Parse.Promise.as(value);
+    };
+
+    Storage.removeItemAsync = function(path) {
+      return Parse.Promise.as(
+        Storage.removeItem(path)
+      );
+    };
+  }
+
+  Parse.Storage = Storage;
+
+})(this);
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * @namespace Provides an interface to Parse's logging and analytics backend.
+   */
+  Parse.Analytics = Parse.Analytics || {};
+
+  _.extend(Parse.Analytics, /** @lends Parse.Analytics */ {
+    /**
+     * Tracks the occurrence of a custom event with additional dimensions.
+     * Parse will store a data point at the time of invocation with the given
+     * event name.
+     *
+     * Dimensions will allow segmentation of the occurrences of this custom
+     * event. Keys and values should be {@code String}s, and will throw
+     * otherwise.
+     *
+     * To track a user signup along with additional metadata, consider the
+     * following:
+     * <pre>
+     * var dimensions = {
+     *  gender: 'm',
+     *  source: 'web',
+     *  dayType: 'weekend'
+     * };
+     * Parse.Analytics.track('signup', dimensions);
+     * </pre>
+     *
+     * There is a default limit of 8 dimensions per event tracked.
+     *
+     * @param {String} name The name of the custom event to report to Parse as
+     * having happened.
+     * @param {Object} dimensions The dictionary of information by which to
+     * segment this event.
+     * @param {Object} options A Backbone-style callback object.
+     * @return {Parse.Promise} A promise that is resolved when the round-trip
+     * to the server completes.
+     */
+    track: function(name, dimensions, options) {
+      name = name || '';
+      name = name.replace(/^\s*/, '');
+      name = name.replace(/\s*$/, '');
+      if (name.length === 0) {
+        throw 'A name for the custom event must be provided';
+      }
+
+      _.each(dimensions, function(val, key) {
+        if (!_.isString(key) || !_.isString(val)) {
+          throw 'track() dimensions expects keys and values of type "string".';
+        }
+      });
+
+      options = options || {};
+      return Parse._request({
+        route: 'events',
+        className: name,
+        method: 'POST',
+        data: { dimensions: dimensions }
+      })._thenRunCallbacks(options);
+    }
+  });
+}(this));
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * @class Parse.Config is a local representation of configuration data that
+   * can be set from the Parse dashboard.
+   */
+  Parse.Config = function() {
+    this.attributes = {};
+    this._escapedAttributes = {};
+  };
+
+  /**
+   * Retrieves the most recently-fetched configuration object, either from
+   * memory or from local storage if necessary.
+   *
+   * @return {Parse.Config} The most recently-fetched Parse.Config if it
+   *     exists, else an empty Parse.Config.
+   */
+  Parse.Config.current = function() {
+    if (Parse.Config._currentConfig) {
+      return Parse.Config._currentConfig;
+    }
+
+    var config = new Parse.Config();
+
+    if (Parse.Storage.async) {
+      return config;
+    }
+
+    var configData = Parse.Storage.getItem(Parse._getParsePath(
+          Parse.Config._CURRENT_CONFIG_KEY));
+
+    if (configData) {  
+      config._finishFetch(JSON.parse(configData));
+      Parse.Config._currentConfig = config;
+    }
+    return config;
+  };
+
+  /**
+   * Gets a new configuration object from the server.
+   * @param {Object} options A Backbone-style options object.
+   * Valid options are:<ul>
+   *   <li>success: Function to call when the get completes successfully.
+   *   <li>error: Function to call when the get fails.
+   * </ul>
+   * @return {Parse.Promise} A promise that is resolved with a newly-created
+   *     configuration object when the get completes.
+   */
+  Parse.Config.get = function(options) {
+    options = options || {};
+
+    var request = Parse._request({
+      route: "config",
+      method: "GET",
+    });
+
+    return request.then(function(response) {
+      if (!response || !response.params) {
+        var errorObject = new Parse.Error(
+          Parse.Error.INVALID_JSON,
+          "Config JSON response invalid.");
+        return Parse.Promise.error(errorObject);
+      }
+
+      var config = new Parse.Config();
+      config._finishFetch(response);
+      Parse.Config._currentConfig = config;
+      return config;
+    })._thenRunCallbacks(options);
+  };
+
+  Parse.Config.prototype = {
+
+    /**
+     * Gets the HTML-escaped value of an attribute.
+     */
+    escape: function(attr) {
+      var html = this._escapedAttributes[attr];
+      if (html) {
+        return html;
+      }
+      var val = this.attributes[attr];
+      var escaped;
+      if (Parse._isNullOrUndefined(val)) {
+        escaped = '';
+      } else {
+        escaped = _.escape(val.toString());
+      }
+      this._escapedAttributes[attr] = escaped;
+      return escaped;
+    },
+
+    /**
+     * Gets the value of an attribute.
+     * @param {String} attr The name of an attribute.
+     */
+    get: function(attr) {
+      return this.attributes[attr];
+    },
+
+    _finishFetch: function(serverData) {
+      this.attributes = Parse._decode(null, _.clone(serverData.params));
+      if (!Parse.Storage.async) {
+        // We only provide local caching of config with synchronous Storage
+        Parse.Storage.setItem(
+            Parse._getParsePath(Parse.Config._CURRENT_CONFIG_KEY),
+            JSON.stringify(serverData));
+      }
+    }
+  };
+
+  Parse.Config._currentConfig = null;
+
+  Parse.Config._CURRENT_CONFIG_KEY = "currentConfig";
+
+}(this));
+
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Constructs a new Parse.Error object with the given code and message.
+   * @param {Number} code An error code constant from <code>Parse.Error</code>.
+   * @param {String} message A detailed description of the error.
+   * @class
+   *
+   * <p>Class used for all objects passed to error callbacks.</p>
+   */
+  Parse.Error = function(code, message) {
+    this.code = code;
+    this.message = message;
+  };
+
+  _.extend(Parse.Error, /** @lends Parse.Error */ {
+    /**
+     * Error code indicating some error other than those enumerated here.
+     * @constant
+     */
+    OTHER_CAUSE: -1,
+
+    /**
+     * Error code indicating that something has gone wrong with the server.
+     * If you get this error code, it is Parse's fault. Contact us at 
+     * https://parse.com/help
+     * @constant
+     */
+    INTERNAL_SERVER_ERROR: 1,
+
+    /**
+     * Error code indicating the connection to the Parse servers failed.
+     * @constant
+     */
+    CONNECTION_FAILED: 100,
+
+    /**
+     * Error code indicating the specified object doesn't exist.
+     * @constant
+     */
+    OBJECT_NOT_FOUND: 101,
+
+    /**
+     * Error code indicating you tried to query with a datatype that doesn't
+     * support it, like exact matching an array or object.
+     * @constant
+     */
+    INVALID_QUERY: 102,
+
+    /**
+     * Error code indicating a missing or invalid classname. Classnames are
+     * case-sensitive. They must start with a letter, and a-zA-Z0-9_ are the
+     * only valid characters.
+     * @constant
+     */
+    INVALID_CLASS_NAME: 103,
+
+    /**
+     * Error code indicating an unspecified object id.
+     * @constant
+     */
+    MISSING_OBJECT_ID: 104,
+
+    /**
+     * Error code indicating an invalid key name. Keys are case-sensitive. They
+     * must start with a letter, and a-zA-Z0-9_ are the only valid characters.
+     * @constant
+     */
+    INVALID_KEY_NAME: 105,
+
+    /**
+     * Error code indicating a malformed pointer. You should not see this unless
+     * you have been mucking about changing internal Parse code.
+     * @constant
+     */
+    INVALID_POINTER: 106,
+
+    /**
+     * Error code indicating that badly formed JSON was received upstream. This
+     * either indicates you have done something unusual with modifying how
+     * things encode to JSON, or the network is failing badly.
+     * @constant
+     */
+    INVALID_JSON: 107,
+
+    /**
+     * Error code indicating that the feature you tried to access is only
+     * available internally for testing purposes.
+     * @constant
+     */
+    COMMAND_UNAVAILABLE: 108,
+
+    /**
+     * You must call Parse.initialize before using the Parse library.
+     * @constant
+     */
+    NOT_INITIALIZED: 109,
+
+    /**
+     * Error code indicating that a field was set to an inconsistent type.
+     * @constant
+     */
+    INCORRECT_TYPE: 111,
+
+    /**
+     * Error code indicating an invalid channel name. A channel name is either
+     * an empty string (the broadcast channel) or contains only a-zA-Z0-9_
+     * characters and starts with a letter.
+     * @constant
+     */
+    INVALID_CHANNEL_NAME: 112,
+
+    /**
+     * Error code indicating that push is misconfigured.
+     * @constant
+     */
+    PUSH_MISCONFIGURED: 115,
+
+    /**
+     * Error code indicating that the object is too large.
+     * @constant
+     */
+    OBJECT_TOO_LARGE: 116,
+
+    /**
+     * Error code indicating that the operation isn't allowed for clients.
+     * @constant
+     */
+    OPERATION_FORBIDDEN: 119,
+
+    /**
+     * Error code indicating the result was not found in the cache.
+     * @constant
+     */
+    CACHE_MISS: 120,
+
+    /**
+     * Error code indicating that an invalid key was used in a nested
+     * JSONObject.
+     * @constant
+     */
+    INVALID_NESTED_KEY: 121,
+
+    /**
+     * Error code indicating that an invalid filename was used for ParseFile.
+     * A valid file name contains only a-zA-Z0-9_. characters and is between 1
+     * and 128 characters.
+     * @constant
+     */
+    INVALID_FILE_NAME: 122,
+
+    /**
+     * Error code indicating an invalid ACL was provided.
+     * @constant
+     */
+    INVALID_ACL: 123,
+
+    /**
+     * Error code indicating that the request timed out on the server. Typically
+     * this indicates that the request is too expensive to run.
+     * @constant
+     */
+    TIMEOUT: 124,
+
+    /**
+     * Error code indicating that the email address was invalid.
+     * @constant
+     */
+    INVALID_EMAIL_ADDRESS: 125,
+
+    /**
+     * Error code indicating a missing content type.
+     * @constant
+     */
+    MISSING_CONTENT_TYPE: 126,
+
+    /**
+     * Error code indicating a missing content length.
+     * @constant
+     */
+    MISSING_CONTENT_LENGTH: 127,
+
+    /**
+     * Error code indicating an invalid content length.
+     * @constant
+     */
+    INVALID_CONTENT_LENGTH: 128,
+
+    /**
+     * Error code indicating a file that was too large.
+     * @constant
+     */
+    FILE_TOO_LARGE: 129,
+
+    /**
+     * Error code indicating an error saving a file.
+     * @constant
+     */
+    FILE_SAVE_ERROR: 130,
+
+    /**
+     * Error code indicating that a unique field was given a value that is
+     * already taken.
+     * @constant
+     */
+    DUPLICATE_VALUE: 137,
+
+    /**
+     * Error code indicating that a role's name is invalid.
+     * @constant
+     */
+    INVALID_ROLE_NAME: 139,
+
+    /**
+     * Error code indicating that an application quota was exceeded.  Upgrade to
+     * resolve.
+     * @constant
+     */
+    EXCEEDED_QUOTA: 140,
+
+    /**
+     * Error code indicating that a Cloud Code script failed.
+     * @constant
+     */
+    SCRIPT_FAILED: 141,
+
+    /**
+     * Error code indicating that a Cloud Code validation failed.
+     * @constant
+     */
+    VALIDATION_ERROR: 142,
+
+    /**
+     * Error code indicating that invalid image data was provided.
+     * @constant
+     */
+    INVALID_IMAGE_DATA: 150,
+
+    /**
+     * Error code indicating an unsaved file.
+     * @constant
+     */
+    UNSAVED_FILE_ERROR: 151,
+
+    /**
+     * Error code indicating an invalid push time.
+     */
+    INVALID_PUSH_TIME_ERROR: 152,
+
+    /**
+     * Error code indicating an error deleting a file.
+     * @constant
+     */
+    FILE_DELETE_ERROR: 153,
+
+    /**
+     * Error code indicating that the application has exceeded its request
+     * limit.
+     * @constant
+     */
+    REQUEST_LIMIT_EXCEEDED: 155,
+
+    /**
+     * Error code indicating an invalid event name.
+     */
+    INVALID_EVENT_NAME: 160,
+
+    /**
+     * Error code indicating that the username is missing or empty.
+     * @constant
+     */
+    USERNAME_MISSING: 200,
+
+    /**
+     * Error code indicating that the password is missing or empty.
+     * @constant
+     */
+    PASSWORD_MISSING: 201,
+
+    /**
+     * Error code indicating that the username has already been taken.
+     * @constant
+     */
+    USERNAME_TAKEN: 202,
+
+    /**
+     * Error code indicating that the email has already been taken.
+     * @constant
+     */
+    EMAIL_TAKEN: 203,
+
+    /**
+     * Error code indicating that the email is missing, but must be specified.
+     * @constant
+     */
+    EMAIL_MISSING: 204,
+
+    /**
+     * Error code indicating that a user with the specified email was not found.
+     * @constant
+     */
+    EMAIL_NOT_FOUND: 205,
+
+    /**
+     * Error code indicating that a user object without a valid session could
+     * not be altered.
+     * @constant
+     */
+    SESSION_MISSING: 206,
+
+    /**
+     * Error code indicating that a user can only be created through signup.
+     * @constant
+     */
+    MUST_CREATE_USER_THROUGH_SIGNUP: 207,
+
+    /**
+     * Error code indicating that an an account being linked is already linked
+     * to another user.
+     * @constant
+     */
+    ACCOUNT_ALREADY_LINKED: 208,
+
+    /**
+     * Error code indicating that the current session token is invalid.
+     * @constant
+     */
+    INVALID_SESSION_TOKEN: 209,
+
+    /**
+     * Error code indicating that a user cannot be linked to an account because
+     * that account's id could not be found.
+     * @constant
+     */
+    LINKED_ID_MISSING: 250,
+
+    /**
+     * Error code indicating that a user with a linked (e.g. Facebook) account
+     * has an invalid session.
+     * @constant
+     */
+    INVALID_LINKED_SESSION: 251,
+
+    /**
+     * Error code indicating that a service being linked (e.g. Facebook or
+     * Twitter) is unsupported.
+     * @constant
+     */
+    UNSUPPORTED_SERVICE: 252,
+
+    /**
+     * Error code indicating that there were multiple errors. Aggregate errors
+     * have an "errors" property, which is an array of error objects with more
+     * detail about each error that occurred.
+     * @constant
+     */
+    AGGREGATE_ERROR: 600,
+
+    /**
+     * Error code indicating the client was unable to read an input file.
+     * @constant
+     */
+    FILE_READ_ERROR: 601,
+
+    /**
+     * Error code indicating a real error code is unavailable because
+     * we had to use an XDomainRequest object to allow CORS requests in
+     * Internet Explorer, which strips the body from HTTP responses that have
+     * a non-2XX status code.
+     * @constant
+     */
+    X_DOMAIN_REQUEST: 602
+  });
+
+}(this));
+
+/*global _: false */
+(function() {
+  var root = this;
+  var Parse = (root.Parse || (root.Parse = {}));
+  var eventSplitter = /\s+/;
+  var slice = Array.prototype.slice;
+
+  /**
+   * @class
+   *
+   * <p>Parse.Events is a fork of Backbone's Events module, provided for your
+   * convenience.</p>
+   *
+   * <p>A module that can be mixed in to any object in order to provide
+   * it with custom events. You may bind callback functions to an event
+   * with `on`, or remove these functions with `off`.
+   * Triggering an event fires all callbacks in the order that `on` was
+   * called.
+   *
+   * <pre>
+   *     var object = {};
+   *     _.extend(object, Parse.Events);
+   *     object.on('expand', function(){ alert('expanded'); });
+   *     object.trigger('expand');</pre></p>
+   *
+   * <p>For more information, see the
+   * <a href="http://documentcloud.github.com/backbone/#Events">Backbone
+   * documentation</a>.</p>
+   */
+  Parse.Events = {
+    /**
+     * Bind one or more space separated events, `events`, to a `callback`
+     * function. Passing `"all"` will bind the callback to all events fired.
+     */
+    on: function(events, callback, context) {
+
+      var calls, event, node, tail, list;
+      if (!callback) {
+        return this;
+      }
+      events = events.split(eventSplitter);
+      calls = this._callbacks || (this._callbacks = {});
+
+      // Create an immutable callback list, allowing traversal during
+      // modification.  The tail is an empty object that will always be used
+      // as the next node.
+      event = events.shift();
+      while (event) {
+        list = calls[event];
+        node = list ? list.tail : {};
+        node.next = tail = {};
+        node.context = context;
+        node.callback = callback;
+        calls[event] = {tail: tail, next: list ? list.next : node};
+        event = events.shift();
+      }
+
+      return this;
+    },
+
+    /**
+     * Remove one or many callbacks. If `context` is null, removes all callbacks
+     * with that function. If `callback` is null, removes all callbacks for the
+     * event. If `events` is null, removes all bound callbacks for all events.
+     */
+    off: function(events, callback, context) {
+      var event, calls, node, tail, cb, ctx;
+
+      // No events, or removing *all* events.
+      if (!(calls = this._callbacks)) {
+        return;
+      }
+      if (!(events || callback || context)) {
+        delete this._callbacks;
+        return this;
+      }
+
+      // Loop through the listed events and contexts, splicing them out of the
+      // linked list of callbacks if appropriate.
+      events = events ? events.split(eventSplitter) : Object.keys(calls);
+      event = events.shift();
+      while (event) {
+        node = calls[event];
+        delete calls[event];
+        if (!node || !(callback || context)) {
+          event = events.shift();
+          continue;
+        }
+        // Create a new list, omitting the indicated callbacks.
+        tail = node.tail;
+        node = node.next;
+        while (node !== tail) {
+          cb = node.callback;
+          ctx = node.context;
+          if ((callback && cb !== callback) || (context && ctx !== context)) {
+            this.on(event, cb, ctx);
+          }
+          node = node.next;
+        }
+        event = events.shift();
+      }
+
+      return this;
+    },
+
+    /**
+     * Trigger one or many events, firing all bound callbacks. Callbacks are
+     * passed the same arguments as `trigger` is, apart from the event name
+     * (unless you're listening on `"all"`, which will cause your callback to
+     * receive the true name of the event as the first argument).
+     */
+    trigger: function(events) {
+      var event, node, calls, tail, args, all, rest;
+      if (!(calls = this._callbacks)) {
+        return this;
+      }
+      all = calls.all;
+      events = events.split(eventSplitter);
+      rest = slice.call(arguments, 1);
+
+      // For each event, walk through the linked list of callbacks twice,
+      // first to trigger the event, then to trigger any `"all"` callbacks.
+      event = events.shift();
+      while (event) {
+        node = calls[event];
+        if (node) {
+          tail = node.tail;
+          while ((node = node.next) !== tail) {
+            node.callback.apply(node.context || this, rest);
+          }
+        }
+        node = all;
+        if (node) {
+          tail = node.tail;
+          args = [event].concat(rest);
+          while ((node = node.next) !== tail) {
+            node.callback.apply(node.context || this, args);
+          }
+        }
+        event = events.shift();
+      }
+
+      return this;
+    }
+  };  
+
+  /**
+   * @function
+   */
+  Parse.Events.bind = Parse.Events.on;
+
+  /**
+   * @function
+   */
+  Parse.Events.unbind = Parse.Events.off;
+}.call(this));
+
+
+/*global navigator: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Creates a new GeoPoint with any of the following forms:<br>
+   *   <pre>
+   *   new GeoPoint(otherGeoPoint)
+   *   new GeoPoint(30, 30)
+   *   new GeoPoint([30, 30])
+   *   new GeoPoint({latitude: 30, longitude: 30})
+   *   new GeoPoint()  // defaults to (0, 0)
+   *   </pre>
+   * @class
+   *
+   * <p>Represents a latitude / longitude point that may be associated
+   * with a key in a ParseObject or used as a reference point for geo queries.
+   * This allows proximity-based queries on the key.</p>
+   *
+   * <p>Only one key in a class may contain a GeoPoint.</p>
+   *
+   * <p>Example:<pre>
+   *   var point = new Parse.GeoPoint(30.0, -20.0);
+   *   var object = new Parse.Object("PlaceObject");
+   *   object.set("location", point);
+   *   object.save();</pre></p>
+   */
+  Parse.GeoPoint = function(arg1, arg2) {
+    if (_.isArray(arg1)) {
+      Parse.GeoPoint._validate(arg1[0], arg1[1]);
+      this.latitude = arg1[0];
+      this.longitude = arg1[1];
+    } else if (_.isObject(arg1)) {
+      Parse.GeoPoint._validate(arg1.latitude, arg1.longitude);
+      this.latitude = arg1.latitude;
+      this.longitude = arg1.longitude;
+    } else if (_.isNumber(arg1) && _.isNumber(arg2)) {
+      Parse.GeoPoint._validate(arg1, arg2);
+      this.latitude = arg1;
+      this.longitude = arg2;
+    } else {
+      this.latitude = 0;
+      this.longitude = 0;
+    }
+
+    // Add properties so that anyone using Webkit or Mozilla will get an error
+    // if they try to set values that are out of bounds.
+    var self = this;
+    if (this.__defineGetter__ && this.__defineSetter__) {
+      // Use _latitude and _longitude to actually store the values, and add
+      // getters and setters for latitude and longitude.
+      this._latitude = this.latitude;
+      this._longitude = this.longitude;
+      this.__defineGetter__("latitude", function() {
+        return self._latitude;
+      });
+      this.__defineGetter__("longitude", function() {
+        return self._longitude;
+      });
+      this.__defineSetter__("latitude", function(val) {
+        Parse.GeoPoint._validate(val, self.longitude);
+        self._latitude = val;
+      });
+      this.__defineSetter__("longitude", function(val) {
+        Parse.GeoPoint._validate(self.latitude, val);
+        self._longitude = val;
+      });
+    }
+  };
+
+  /**
+   * @lends Parse.GeoPoint.prototype
+   * @property {float} latitude North-south portion of the coordinate, in range
+   *   [-90, 90].  Throws an exception if set out of range in a modern browser.
+   * @property {float} longitude East-west portion of the coordinate, in range
+   *   [-180, 180].  Throws if set out of range in a modern browser.
+   */
+
+  /**
+   * Throws an exception if the given lat-long is out of bounds.
+   */
+  Parse.GeoPoint._validate = function(latitude, longitude) {
+    if (latitude < -90.0) {
+      throw "Parse.GeoPoint latitude " + latitude + " < -90.0.";
+    }
+    if (latitude > 90.0) {
+      throw "Parse.GeoPoint latitude " + latitude + " > 90.0.";
+    }
+    if (longitude < -180.0) {
+      throw "Parse.GeoPoint longitude " + longitude + " < -180.0.";
+    }
+    if (longitude > 180.0) {
+      throw "Parse.GeoPoint longitude " + longitude + " > 180.0.";
+    }
+  };
+
+  /**
+   * Creates a GeoPoint with the user's current location, if available.
+   * Calls options.success with a new GeoPoint instance or calls options.error.
+   * @param {Object} options An object with success and error callbacks.
+   */
+  Parse.GeoPoint.current = function(options) {
+    var promise = new Parse.Promise();
+    navigator.geolocation.getCurrentPosition(function(location) {
+      promise.resolve(new Parse.GeoPoint({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      }));
+
+    }, function(error) {
+      promise.reject(error);
+    });
+
+    return promise._thenRunCallbacks(options);
+  };
+
+  Parse.GeoPoint.prototype = {
+    /**
+     * Returns a JSON representation of the GeoPoint, suitable for Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      Parse.GeoPoint._validate(this.latitude, this.longitude);
+      return {
+        "__type": "GeoPoint",
+        latitude: this.latitude,
+        longitude: this.longitude
+      };
+    },
+
+    /**
+     * Returns the distance from this GeoPoint to another in radians.
+     * @param {Parse.GeoPoint} point the other Parse.GeoPoint.
+     * @return {Number}
+     */
+    radiansTo: function(point) {
+      var d2r = Math.PI / 180.0;
+      var lat1rad = this.latitude * d2r;
+      var long1rad = this.longitude * d2r;
+      var lat2rad = point.latitude * d2r;
+      var long2rad = point.longitude * d2r;
+      var deltaLat = lat1rad - lat2rad;
+      var deltaLong = long1rad - long2rad;
+      var sinDeltaLatDiv2 = Math.sin(deltaLat / 2);
+      var sinDeltaLongDiv2 = Math.sin(deltaLong / 2);
+      // Square of half the straight line chord distance between both points.
+      var a = ((sinDeltaLatDiv2 * sinDeltaLatDiv2) +
+               (Math.cos(lat1rad) * Math.cos(lat2rad) *
+                sinDeltaLongDiv2 * sinDeltaLongDiv2));
+      a = Math.min(1.0, a);
+      return 2 * Math.asin(Math.sqrt(a));
+    },
+
+    /**
+     * Returns the distance from this GeoPoint to another in kilometers.
+     * @param {Parse.GeoPoint} point the other Parse.GeoPoint.
+     * @return {Number}
+     */
+    kilometersTo: function(point) {
+      return this.radiansTo(point) * 6371.0;
+    },
+
+    /**
+     * Returns the distance from this GeoPoint to another in miles.
+     * @param {Parse.GeoPoint} point the other Parse.GeoPoint.
+     * @return {Number}
+     */
+    milesTo: function(point) {
+      return this.radiansTo(point) * 3958.8;
+    }
+  };
+}(this));
+
+/*global navigator: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  var PUBLIC_KEY = "*";
+
+  /**
+   * Creates a new ACL.
+   * If no argument is given, the ACL has no permissions for anyone.
+   * If the argument is a Parse.User, the ACL will have read and write
+   *   permission for only that user.
+   * If the argument is any other JSON object, that object will be interpretted
+   *   as a serialized ACL created with toJSON().
+   * @see Parse.Object#setACL
+   * @class
+   *
+   * <p>An ACL, or Access Control List can be added to any
+   * <code>Parse.Object</code> to restrict access to only a subset of users
+   * of your application.</p>
+   */
+  Parse.ACL = function(arg1) {
+    var self = this;
+    self.permissionsById = {};
+    if (_.isObject(arg1)) {
+      if (arg1 instanceof Parse.User) {
+        self.setReadAccess(arg1, true);
+        self.setWriteAccess(arg1, true);
+      } else {
+        if (_.isFunction(arg1)) {
+          throw "Parse.ACL() called with a function.  Did you forget ()?";
+        }
+        Parse._objectEach(arg1, function(accessList, userId) {
+          if (!_.isString(userId)) {
+            throw "Tried to create an ACL with an invalid userId.";
+          }
+          self.permissionsById[userId] = {};
+          Parse._objectEach(accessList, function(allowed, permission) {
+            if (permission !== "read" && permission !== "write") {
+              throw "Tried to create an ACL with an invalid permission type.";
+            }
+            if (!_.isBoolean(allowed)) {
+              throw "Tried to create an ACL with an invalid permission value.";
+            }
+            self.permissionsById[userId][permission] = allowed;
+          });
+        });
+      }
+    }
+  };
+
+  /**
+   * Returns a JSON-encoded version of the ACL.
+   * @return {Object}
+   */
+  Parse.ACL.prototype.toJSON = function() {
+    return _.clone(this.permissionsById);
+  };
+
+  Parse.ACL.prototype._setAccess = function(accessType, userId, allowed) {
+    if (userId instanceof Parse.User) {
+      userId = userId.id;
+    } else if (userId instanceof Parse.Role) {
+      userId = "role:" + userId.getName();
+    }
+    if (!_.isString(userId)) {
+      throw "userId must be a string.";
+    }
+    if (!_.isBoolean(allowed)) {
+      throw "allowed must be either true or false.";
+    }
+    var permissions = this.permissionsById[userId];
+    if (!permissions) {
+      if (!allowed) {
+        // The user already doesn't have this permission, so no action needed.
+        return;
+      } else {
+        permissions = {};
+        this.permissionsById[userId] = permissions;
+      }
+    }
+
+    if (allowed) {
+      this.permissionsById[userId][accessType] = true;
+    } else {
+      delete permissions[accessType];
+      if (_.isEmpty(permissions)) {
+        delete permissions[userId];
+      }
+    }
+  };
+
+  Parse.ACL.prototype._getAccess = function(accessType, userId) {
+    if (userId instanceof Parse.User) {
+      userId = userId.id;
+    } else if (userId instanceof Parse.Role) {
+      userId = "role:" + userId.getName();
+    }
+    var permissions = this.permissionsById[userId];
+    if (!permissions) {
+      return false;
+    }
+    return permissions[accessType] ? true : false;
+  };
+
+  /**
+   * Set whether the given user is allowed to read this object.
+   * @param userId An instance of Parse.User or its objectId.
+   * @param {Boolean} allowed Whether that user should have read access.
+   */
+  Parse.ACL.prototype.setReadAccess = function(userId, allowed) {
+    this._setAccess("read", userId, allowed);
+  };
+
+  /**
+   * Get whether the given user id is *explicitly* allowed to read this object.
+   * Even if this returns false, the user may still be able to access it if
+   * getPublicReadAccess returns true or a role that the user belongs to has
+   * write access.
+   * @param userId An instance of Parse.User or its objectId, or a Parse.Role.
+   * @return {Boolean}
+   */
+  Parse.ACL.prototype.getReadAccess = function(userId) {
+    return this._getAccess("read", userId);
+  };
+
+  /**
+   * Set whether the given user id is allowed to write this object.
+   * @param userId An instance of Parse.User or its objectId, or a Parse.Role..
+   * @param {Boolean} allowed Whether that user should have write access.
+   */
+  Parse.ACL.prototype.setWriteAccess = function(userId, allowed) {
+    this._setAccess("write", userId, allowed);
+  };
+
+  /**
+   * Get whether the given user id is *explicitly* allowed to write this object.
+   * Even if this returns false, the user may still be able to write it if
+   * getPublicWriteAccess returns true or a role that the user belongs to has
+   * write access.
+   * @param userId An instance of Parse.User or its objectId, or a Parse.Role.
+   * @return {Boolean}
+   */
+  Parse.ACL.prototype.getWriteAccess = function(userId) {
+    return this._getAccess("write", userId);
+  };
+
+  /**
+   * Set whether the public is allowed to read this object.
+   * @param {Boolean} allowed
+   */
+  Parse.ACL.prototype.setPublicReadAccess = function(allowed) {
+    this.setReadAccess(PUBLIC_KEY, allowed);
+  };
+
+  /**
+   * Get whether the public is allowed to read this object.
+   * @return {Boolean}
+   */
+  Parse.ACL.prototype.getPublicReadAccess = function() {
+    return this.getReadAccess(PUBLIC_KEY);
+  };
+
+  /**
+   * Set whether the public is allowed to write this object.
+   * @param {Boolean} allowed
+   */
+  Parse.ACL.prototype.setPublicWriteAccess = function(allowed) {
+    this.setWriteAccess(PUBLIC_KEY, allowed);
+  };
+
+  /**
+   * Get whether the public is allowed to write this object.
+   * @return {Boolean}
+   */
+  Parse.ACL.prototype.getPublicWriteAccess = function() {
+    return this.getWriteAccess(PUBLIC_KEY);
+  };
+  
+  /**
+   * Get whether users belonging to the given role are allowed
+   * to read this object. Even if this returns false, the role may
+   * still be able to write it if a parent role has read access.
+   * 
+   * @param role The name of the role, or a Parse.Role object.
+   * @return {Boolean} true if the role has read access. false otherwise.
+   * @throws {String} If role is neither a Parse.Role nor a String.
+   */
+  Parse.ACL.prototype.getRoleReadAccess = function(role) {
+    if (role instanceof Parse.Role) {
+      // Normalize to the String name
+      role = role.getName();
+    }
+    if (_.isString(role)) {
+      return this.getReadAccess("role:" + role);
+    }
+    throw "role must be a Parse.Role or a String";
+  };
+  
+  /**
+   * Get whether users belonging to the given role are allowed
+   * to write this object. Even if this returns false, the role may
+   * still be able to write it if a parent role has write access.
+   * 
+   * @param role The name of the role, or a Parse.Role object.
+   * @return {Boolean} true if the role has write access. false otherwise.
+   * @throws {String} If role is neither a Parse.Role nor a String.
+   */
+  Parse.ACL.prototype.getRoleWriteAccess = function(role) {
+    if (role instanceof Parse.Role) {
+      // Normalize to the String name
+      role = role.getName();
+    }
+    if (_.isString(role)) {
+      return this.getWriteAccess("role:" + role);
+    }
+    throw "role must be a Parse.Role or a String";
+  };
+  
+  /**
+   * Set whether users belonging to the given role are allowed
+   * to read this object.
+   * 
+   * @param role The name of the role, or a Parse.Role object.
+   * @param {Boolean} allowed Whether the given role can read this object.
+   * @throws {String} If role is neither a Parse.Role nor a String.
+   */
+  Parse.ACL.prototype.setRoleReadAccess = function(role, allowed) {
+    if (role instanceof Parse.Role) {
+      // Normalize to the String name
+      role = role.getName();
+    }
+    if (_.isString(role)) {
+      this.setReadAccess("role:" + role, allowed);
+      return;
+    }
+    throw "role must be a Parse.Role or a String";
+  };
+  
+  /**
+   * Set whether users belonging to the given role are allowed
+   * to write this object.
+   * 
+   * @param role The name of the role, or a Parse.Role object.
+   * @param {Boolean} allowed Whether the given role can write this object.
+   * @throws {String} If role is neither a Parse.Role nor a String.
+   */
+  Parse.ACL.prototype.setRoleWriteAccess = function(role, allowed) {
+    if (role instanceof Parse.Role) {
+      // Normalize to the String name
+      role = role.getName();
+    }
+    if (_.isString(role)) {
+      this.setWriteAccess("role:" + role, allowed);
+      return;
+    }
+    throw "role must be a Parse.Role or a String";
+  };
+
+}(this));
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * @class
+   * A Parse.Op is an atomic operation that can be applied to a field in a
+   * Parse.Object. For example, calling <code>object.set("foo", "bar")</code>
+   * is an example of a Parse.Op.Set. Calling <code>object.unset("foo")</code>
+   * is a Parse.Op.Unset. These operations are stored in a Parse.Object and
+   * sent to the server as part of <code>object.save()</code> operations.
+   * Instances of Parse.Op should be immutable.
+   *
+   * You should not create subclasses of Parse.Op or instantiate Parse.Op
+   * directly.
+   */
+  Parse.Op = function() {
+    this._initialize.apply(this, arguments);
+  };
+
+  Parse.Op.prototype = {
+    _initialize: function() {}
+  };
+
+  _.extend(Parse.Op, {
+    /**
+     * To create a new Op, call Parse.Op._extend();
+     */
+    _extend: Parse._extend,
+
+    // A map of __op string to decoder function.
+    _opDecoderMap: {},
+
+    /**
+     * Registers a function to convert a json object with an __op field into an
+     * instance of a subclass of Parse.Op.
+     */
+    _registerDecoder: function(opName, decoder) {
+      Parse.Op._opDecoderMap[opName] = decoder;
+    },
+
+    /**
+     * Converts a json object into an instance of a subclass of Parse.Op.
+     */
+    _decode: function(json) {
+      var decoder = Parse.Op._opDecoderMap[json.__op];
+      if (decoder) {
+        return decoder(json);
+      } else {
+        return undefined;
+      }
+    }
+  });
+
+  /*
+   * Add a handler for Batch ops.
+   */
+  Parse.Op._registerDecoder("Batch", function(json) {
+    var op = null;
+    Parse._arrayEach(json.ops, function(nextOp) {
+      nextOp = Parse.Op._decode(nextOp);
+      op = nextOp._mergeWithPrevious(op);
+    });
+    return op;
+  });
+
+  /**
+   * @class
+   * A Set operation indicates that either the field was changed using
+   * Parse.Object.set, or it is a mutable container that was detected as being
+   * changed.
+   */
+  Parse.Op.Set = Parse.Op._extend(/** @lends Parse.Op.Set.prototype */ {
+    _initialize: function(value) {
+      this._value = value;
+    },
+
+    /**
+     * Returns the new value of this field after the set.
+     */
+    value: function() {
+      return this._value;
+    },
+
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return Parse._encode(this.value());
+    },
+
+    _mergeWithPrevious: function(previous) {
+      return this;
+    },
+
+    _estimate: function(oldValue) {
+      return this.value();
+    }
+  });
+
+  /**
+   * A sentinel value that is returned by Parse.Op.Unset._estimate to
+   * indicate the field should be deleted. Basically, if you find _UNSET as a
+   * value in your object, you should remove that key.
+   */
+  Parse.Op._UNSET = {};
+
+  /**
+   * @class
+   * An Unset operation indicates that this field has been deleted from the
+   * object.
+   */
+  Parse.Op.Unset = Parse.Op._extend(/** @lends Parse.Op.Unset.prototype */ {
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return { __op: "Delete" };
+    },
+
+    _mergeWithPrevious: function(previous) {
+      return this;
+    },
+
+    _estimate: function(oldValue) {
+      return Parse.Op._UNSET;
+    }
+  });
+
+  Parse.Op._registerDecoder("Delete", function(json) {
+    return new Parse.Op.Unset();
+  });
+
+  /**
+   * @class
+   * An Increment is an atomic operation where the numeric value for the field
+   * will be increased by a given amount.
+   */
+  Parse.Op.Increment = Parse.Op._extend(
+      /** @lends Parse.Op.Increment.prototype */ {
+
+    _initialize: function(amount) {
+      this._amount = amount;
+    },
+
+    /**
+     * Returns the amount to increment by.
+     * @return {Number} the amount to increment by.
+     */
+    amount: function() {
+      return this._amount;
+    },
+
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return { __op: "Increment", amount: this._amount };
+    },
+
+    _mergeWithPrevious: function(previous) {
+      if (!previous) {
+        return this;
+      } else if (previous instanceof Parse.Op.Unset) {
+        return new Parse.Op.Set(this.amount());
+      } else if (previous instanceof Parse.Op.Set) {
+        return new Parse.Op.Set(previous.value() + this.amount());
+      } else if (previous instanceof Parse.Op.Increment) {
+        return new Parse.Op.Increment(this.amount() + previous.amount());
+      } else {
+        throw "Op is invalid after previous op.";
+      }
+    },
+
+    _estimate: function(oldValue) {
+      if (!oldValue) {
+        return this.amount();
+      }
+      return oldValue + this.amount();
+    }
+  });
+
+  Parse.Op._registerDecoder("Increment", function(json) {
+    return new Parse.Op.Increment(json.amount);
+  });
+
+  /**
+   * @class
+   * Add is an atomic operation where the given objects will be appended to the
+   * array that is stored in this field.
+   */
+  Parse.Op.Add = Parse.Op._extend(/** @lends Parse.Op.Add.prototype */ {
+    _initialize: function(objects) {
+      this._objects = objects;
+    },
+
+    /**
+     * Returns the objects to be added to the array.
+     * @return {Array} The objects to be added to the array.
+     */
+    objects: function() {
+      return this._objects;
+    },
+
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return { __op: "Add", objects: Parse._encode(this.objects()) };
+    },
+
+    _mergeWithPrevious: function(previous) {
+      if (!previous) {
+        return this;
+      } else if (previous instanceof Parse.Op.Unset) {
+        return new Parse.Op.Set(this.objects());
+      } else if (previous instanceof Parse.Op.Set) {
+        return new Parse.Op.Set(this._estimate(previous.value()));
+      } else if (previous instanceof Parse.Op.Add) {
+        return new Parse.Op.Add(previous.objects().concat(this.objects()));
+      } else {
+        throw "Op is invalid after previous op.";
+      }
+    },
+
+    _estimate: function(oldValue) {
+      if (!oldValue) {
+        return _.clone(this.objects());
+      } else {
+        return oldValue.concat(this.objects());
+      }
+    }
+  });
+
+  Parse.Op._registerDecoder("Add", function(json) {
+    return new Parse.Op.Add(Parse._decode(undefined, json.objects));
+  });
+
+  /**
+   * @class
+   * AddUnique is an atomic operation where the given items will be appended to
+   * the array that is stored in this field only if they were not already
+   * present in the array.
+   */
+  Parse.Op.AddUnique = Parse.Op._extend(
+      /** @lends Parse.Op.AddUnique.prototype */ {
+
+    _initialize: function(objects) {
+      this._objects = _.uniq(objects);
+    },
+
+    /**
+     * Returns the objects to be added to the array.
+     * @return {Array} The objects to be added to the array.
+     */
+    objects: function() {
+      return this._objects;
+    },
+
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return { __op: "AddUnique", objects: Parse._encode(this.objects()) };
+    },
+
+    _mergeWithPrevious: function(previous) {
+      if (!previous) {
+        return this;
+      } else if (previous instanceof Parse.Op.Unset) {
+        return new Parse.Op.Set(this.objects());
+      } else if (previous instanceof Parse.Op.Set) {
+        return new Parse.Op.Set(this._estimate(previous.value()));
+      } else if (previous instanceof Parse.Op.AddUnique) {
+        return new Parse.Op.AddUnique(this._estimate(previous.objects()));
+      } else {
+        throw "Op is invalid after previous op.";
+      }
+    },
+
+    _estimate: function(oldValue) {
+      if (!oldValue) {
+        return _.clone(this.objects());
+      } else {
+        // We can't just take the _.uniq(_.union(...)) of oldValue and
+        // this.objects, because the uniqueness may not apply to oldValue
+        // (especially if the oldValue was set via .set())
+        var newValue = _.clone(oldValue);
+        Parse._arrayEach(this.objects(), function(obj) {
+          if (obj instanceof Parse.Object && obj.id) {
+            var matchingObj = _.find(newValue, function(anObj) {
+              return (anObj instanceof Parse.Object) && (anObj.id === obj.id);
+            });
+            if (!matchingObj) {
+              newValue.push(obj);
+            } else {
+              var index = _.indexOf(newValue, matchingObj);
+              newValue[index] = obj;
+            }
+          } else if (!_.contains(newValue, obj)) {
+            newValue.push(obj);
+          }
+        });
+        return newValue;
+      }
+    }
+  });
+
+  Parse.Op._registerDecoder("AddUnique", function(json) {
+    return new Parse.Op.AddUnique(Parse._decode(undefined, json.objects));
+  });
+
+  /**
+   * @class
+   * Remove is an atomic operation where the given objects will be removed from
+   * the array that is stored in this field.
+   */
+  Parse.Op.Remove = Parse.Op._extend(/** @lends Parse.Op.Remove.prototype */ {
+    _initialize: function(objects) {
+      this._objects = _.uniq(objects);
+    },
+
+    /**
+     * Returns the objects to be removed from the array.
+     * @return {Array} The objects to be removed from the array.
+     */
+    objects: function() {
+      return this._objects;
+    },
+
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return { __op: "Remove", objects: Parse._encode(this.objects()) };
+    },
+
+    _mergeWithPrevious: function(previous) {
+      if (!previous) {
+        return this;
+      } else if (previous instanceof Parse.Op.Unset) {
+        return previous;
+      } else if (previous instanceof Parse.Op.Set) {
+        return new Parse.Op.Set(this._estimate(previous.value()));
+      } else if (previous instanceof Parse.Op.Remove) {
+        return new Parse.Op.Remove(_.union(previous.objects(), this.objects()));
+      } else {
+        throw "Op is invalid after previous op.";
+      }
+    },
+
+    _estimate: function(oldValue) {
+      if (!oldValue) {
+        return [];
+      } else {
+        var newValue = _.difference(oldValue, this.objects());
+        // If there are saved Parse Objects being removed, also remove them.
+        Parse._arrayEach(this.objects(), function(obj) {
+          if (obj instanceof Parse.Object && obj.id) {
+            newValue = _.reject(newValue, function(other) {
+              return (other instanceof Parse.Object) && (other.id === obj.id);
+            });
+          }
+        });
+        return newValue;
+      }
+    }
+  });
+
+  Parse.Op._registerDecoder("Remove", function(json) {
+    return new Parse.Op.Remove(Parse._decode(undefined, json.objects));
+  });
+
+  /**
+   * @class
+   * A Relation operation indicates that the field is an instance of
+   * Parse.Relation, and objects are being added to, or removed from, that
+   * relation.
+   */
+  Parse.Op.Relation = Parse.Op._extend(
+      /** @lends Parse.Op.Relation.prototype */ {
+
+    _initialize: function(adds, removes) {
+      this._targetClassName = null;
+
+      var self = this;
+
+      var pointerToId = function(object) {
+        if (object instanceof Parse.Object) {
+          if (!object.id) {
+            throw "You can't add an unsaved Parse.Object to a relation.";
+          }
+          if (!self._targetClassName) {
+            self._targetClassName = object.className;
+          }
+          if (self._targetClassName !== object.className) {
+            throw "Tried to create a Parse.Relation with 2 different types: " +
+                  self._targetClassName + " and " + object.className + ".";
+          }
+          return object.id;
+        }
+        return object;
+      };
+
+      this.relationsToAdd = _.uniq(_.map(adds, pointerToId));
+      this.relationsToRemove = _.uniq(_.map(removes, pointerToId));
+    },
+
+    /**
+     * Returns an array of unfetched Parse.Object that are being added to the
+     * relation.
+     * @return {Array}
+     */
+    added: function() {
+      var self = this;
+      return _.map(this.relationsToAdd, function(objectId) {
+        var object = Parse.Object._create(self._targetClassName);
+        object.id = objectId;
+        return object;
+      });
+    },
+
+    /**
+     * Returns an array of unfetched Parse.Object that are being removed from
+     * the relation.
+     * @return {Array}
+     */
+    removed: function() {
+      var self = this;
+      return _.map(this.relationsToRemove, function(objectId) {
+        var object = Parse.Object._create(self._targetClassName);
+        object.id = objectId;
+        return object;
+      });
+    },
+
+    /**
+     * Returns a JSON version of the operation suitable for sending to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      var adds = null;
+      var removes = null;
+      var self = this;
+      var idToPointer = function(id) {
+        return { __type: 'Pointer',
+                 className: self._targetClassName,
+                 objectId: id };
+      };
+      var pointers = null;
+      if (this.relationsToAdd.length > 0) {
+        pointers = _.map(this.relationsToAdd, idToPointer);
+        adds = { "__op": "AddRelation", "objects": pointers };
+      }
+
+      if (this.relationsToRemove.length > 0) {
+        pointers = _.map(this.relationsToRemove, idToPointer);
+        removes = { "__op": "RemoveRelation", "objects": pointers };
+      }
+
+      if (adds && removes) {
+        return { "__op": "Batch", "ops": [adds, removes]};
+      }
+
+      return adds || removes || {};
+    },
+
+    _mergeWithPrevious: function(previous) {
+      if (!previous) {
+        return this;
+      } else if (previous instanceof Parse.Op.Unset) {
+        throw "You can't modify a relation after deleting it.";
+      } else if (previous instanceof Parse.Op.Relation) {
+        if (previous._targetClassName &&
+            previous._targetClassName !== this._targetClassName) {
+          throw "Related object must be of class " + previous._targetClassName +
+              ", but " + this._targetClassName + " was passed in.";
+        }
+        var newAdd = _.union(_.difference(previous.relationsToAdd,
+                                          this.relationsToRemove),
+                             this.relationsToAdd);
+        var newRemove = _.union(_.difference(previous.relationsToRemove,
+                                             this.relationsToAdd),
+                                this.relationsToRemove);
+
+        var newRelation = new Parse.Op.Relation(newAdd, newRemove);
+        newRelation._targetClassName = this._targetClassName;
+        return newRelation;
+      } else {
+        throw "Op is invalid after previous op.";
+      }
+    },
+
+    _estimate: function(oldValue, object, key) {
+      if (!oldValue) {
+        var relation = new Parse.Relation(object, key);
+        relation.targetClassName = this._targetClassName;
+      } else if (oldValue instanceof Parse.Relation) {
+        if (this._targetClassName) {
+          if (oldValue.targetClassName) {
+            if (oldValue.targetClassName !== this._targetClassName) {
+              throw "Related object must be a " + oldValue.targetClassName +
+                  ", but a " + this._targetClassName + " was passed in.";
+            }
+          } else {
+            oldValue.targetClassName = this._targetClassName;
+          }
+        }
+        return oldValue;
+      } else {
+        throw "Op is invalid after previous op.";
+      }
+    }
+  });
+
+  Parse.Op._registerDecoder("AddRelation", function(json) {
+    return new Parse.Op.Relation(Parse._decode(undefined, json.objects), []);
+  });
+  Parse.Op._registerDecoder("RemoveRelation", function(json) {
+    return new Parse.Op.Relation([], Parse._decode(undefined, json.objects));
+  });
+
+}(this));
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Creates a new Relation for the given parent object and key. This
+   * constructor should rarely be used directly, but rather created by
+   * Parse.Object.relation.
+   * @param {Parse.Object} parent The parent of this relation.
+   * @param {String} key The key for this relation on the parent.
+   * @see Parse.Object#relation
+   * @class
+   *
+   * <p>
+   * A class that is used to access all of the children of a many-to-many
+   * relationship.  Each instance of Parse.Relation is associated with a
+   * particular parent object and key.
+   * </p>
+   */
+  Parse.Relation = function(parent, key) {
+    this.parent = parent;
+    this.key = key;
+    this.targetClassName = null;
+  };
+
+  Parse.Relation.prototype = {
+    /**
+     * Makes sure that this relation has the right parent and key.
+     */
+    _ensureParentAndKey: function(parent, key) {
+      this.parent = this.parent || parent;
+      this.key = this.key || key;
+      if (this.parent !== parent) {
+        throw "Internal Error. Relation retrieved from two different Objects.";
+      }
+      if (this.key !== key) {
+        throw "Internal Error. Relation retrieved from two different keys.";
+      }
+    },
+
+    /**
+     * Adds a Parse.Object or an array of Parse.Objects to the relation.
+     * @param {} objects The item or items to add.
+     */
+    add: function(objects) {
+      if (!_.isArray(objects)) {
+        objects = [objects];
+      }
+
+      var change = new Parse.Op.Relation(objects, []);
+      this.parent.set(this.key, change);
+      this.targetClassName = change._targetClassName;
+    },
+
+    /**
+     * Removes a Parse.Object or an array of Parse.Objects from this relation.
+     * @param {} objects The item or items to remove.
+     */
+    remove: function(objects) {
+      if (!_.isArray(objects)) {
+        objects = [objects];
+      }
+
+      var change = new Parse.Op.Relation([], objects);
+      this.parent.set(this.key, change);
+      this.targetClassName = change._targetClassName;
+    },
+
+    /**
+     * Returns a JSON version of the object suitable for saving to disk.
+     * @return {Object}
+     */
+    toJSON: function() {
+      return { "__type": "Relation", "className": this.targetClassName };
+    },
+
+    /**
+     * Returns a Parse.Query that is limited to objects in this
+     * relation.
+     * @return {Parse.Query}
+     */
+    query: function() {
+      var targetClass;
+      var query;
+      if (!this.targetClassName) {
+        targetClass = Parse.Object._getSubclass(this.parent.className);
+        query = new Parse.Query(targetClass);
+        query._extraOptions.redirectClassNameForKey = this.key;
+      } else {
+        targetClass = Parse.Object._getSubclass(this.targetClassName);
+        query = new Parse.Query(targetClass);
+      }
+      query._addCondition("$relatedTo", "object", this.parent._toPointer());
+      query._addCondition("$relatedTo", "key", this.key);
+
+      return query;
+    }
+  };
+}(this));
+
+/*global window: false, process: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * A Promise is returned by async methods as a hook to provide callbacks to be
+   * called when the async task is fulfilled.
+   *
+   * <p>Typical usage would be like:<pre>
+   *    query.find().then(function(results) {
+   *      results[0].set("foo", "bar");
+   *      return results[0].saveAsync();
+   *    }).then(function(result) {
+   *      console.log("Updated " + result.id);
+   *    });
+   * </pre></p>
+   *
+   * @see Parse.Promise.prototype.then
+   * @class
+   */
+  Parse.Promise = function() {
+    this._resolved = false;
+    this._rejected = false;
+    this._resolvedCallbacks = [];
+    this._rejectedCallbacks = [];
+  };
+
+  _.extend(Parse.Promise, /** @lends Parse.Promise */ {
+
+    _isPromisesAPlusCompliant: false,
+
+    /**
+     * Returns true iff the given object fulfils the Promise interface.
+     * @return {Boolean}
+     */
+    is: function(promise) {
+      return promise && promise.then && _.isFunction(promise.then);
+    },
+
+    /**
+     * Returns a new promise that is resolved with a given value.
+     * @return {Parse.Promise} the new promise.
+     */
+    as: function() {
+      var promise = new Parse.Promise();
+      promise.resolve.apply(promise, arguments);
+      return promise;
+    },
+
+    /**
+     * Returns a new promise that is rejected with a given error.
+     * @return {Parse.Promise} the new promise.
+     */
+    error: function() {
+      var promise = new Parse.Promise();
+      promise.reject.apply(promise, arguments);
+      return promise;
+    },
+
+    /**
+     * Returns a new promise that is fulfilled when all of the input promises
+     * are resolved. If any promise in the list fails, then the returned promise
+     * will fail with the last error. If they all succeed, then the returned
+     * promise will succeed, with the results being the results of all the input
+     * promises. For example: <pre>
+     *   var p1 = Parse.Promise.as(1);
+     *   var p2 = Parse.Promise.as(2);
+     *   var p3 = Parse.Promise.as(3);
+     *
+     *   Parse.Promise.when(p1, p2, p3).then(function(r1, r2, r3) {
+     *     console.log(r1);  // prints 1
+     *     console.log(r2);  // prints 2
+     *     console.log(r3);  // prints 3
+     *   });</pre>
+     *
+     * The input promises can also be specified as an array: <pre>
+     *   var promises = [p1, p2, p3];
+     *   Parse.Promise.when(promises).then(function(r1, r2, r3) {
+     *     console.log(r1);  // prints 1
+     *     console.log(r2);  // prints 2
+     *     console.log(r3);  // prints 3
+     *   });
+     * </pre>
+     * @param {Array} promises a list of promises to wait for.
+     * @return {Parse.Promise} the new promise.
+     */
+    when: function(promises) {
+      // Allow passing in Promises as separate arguments instead of an Array.
+      var objects;
+      if (promises && Parse._isNullOrUndefined(promises.length)) {
+        objects = arguments;
+      } else {
+        objects = promises;
+      }
+
+      var total = objects.length;
+      var hadError = false;
+      var results = [];
+      var errors = [];
+      results.length = objects.length;
+      errors.length = objects.length;
+
+      if (total === 0) {
+        return Parse.Promise.as.apply(this, results);
+      }
+
+      var promise = new Parse.Promise();
+
+      var resolveOne = function() {
+        total = total - 1;
+        if (total === 0) {
+          if (hadError) {
+            promise.reject(errors);
+          } else {
+            promise.resolve.apply(promise, results);
+          }
+        }
+      };
+
+      Parse._arrayEach(objects, function(object, i) {
+        if (Parse.Promise.is(object)) {
+          object.then(function(result) {
+            results[i] = result;
+            resolveOne();
+          }, function(error) {
+            errors[i] = error;
+            hadError = true;
+            resolveOne();
+          });
+        } else {
+          results[i] = object;
+          resolveOne();
+        }
+      });
+
+      return promise;
+    },
+
+    /**
+     * Runs the given asyncFunction repeatedly, as long as the predicate
+     * function returns a truthy value. Stops repeating if asyncFunction returns
+     * a rejected promise.
+     * @param {Function} predicate should return false when ready to stop.
+     * @param {Function} asyncFunction should return a Promise.
+     */
+    _continueWhile: function(predicate, asyncFunction) {
+      if (predicate()) {
+        return asyncFunction().then(function() {
+          return Parse.Promise._continueWhile(predicate, asyncFunction);
+        });
+      }
+      return Parse.Promise.as();
+    }
+  });
+
+  _.extend(Parse.Promise.prototype, /** @lends Parse.Promise.prototype */ {
+
+    /**
+     * Marks this promise as fulfilled, firing any callbacks waiting on it.
+     * @param {Object} result the result to pass to the callbacks.
+     */
+    resolve: function(result) {
+      if (this._resolved || this._rejected) {
+        throw "A promise was resolved even though it had already been " +
+          (this._resolved ? "resolved" : "rejected") + ".";
+      }
+      this._resolved = true;
+      this._result = arguments;
+      var results = arguments;
+      Parse._arrayEach(this._resolvedCallbacks, function(resolvedCallback) {
+        resolvedCallback.apply(this, results);
+      });
+      this._resolvedCallbacks = [];
+      this._rejectedCallbacks = [];
+    },
+
+    /**
+     * Marks this promise as fulfilled, firing any callbacks waiting on it.
+     * @param {Object} error the error to pass to the callbacks.
+     */
+    reject: function(error) {
+      if (this._resolved || this._rejected) {
+        throw "A promise was rejected even though it had already been " +
+          (this._resolved ? "resolved" : "rejected") + ".";
+      }
+      this._rejected = true;
+      this._error = error;
+      Parse._arrayEach(this._rejectedCallbacks, function(rejectedCallback) {
+        rejectedCallback(error);
+      });
+      this._resolvedCallbacks = [];
+      this._rejectedCallbacks = [];
+    },
+
+    /**
+     * Adds callbacks to be called when this promise is fulfilled. Returns a new
+     * Promise that will be fulfilled when the callback is complete. It allows
+     * chaining. If the callback itself returns a Promise, then the one returned
+     * by "then" will not be fulfilled until that one returned by the callback
+     * is fulfilled.
+     * @param {Function} resolvedCallback Function that is called when this
+     * Promise is resolved. Once the callback is complete, then the Promise
+     * returned by "then" will also be fulfilled.
+     * @param {Function} rejectedCallback Function that is called when this
+     * Promise is rejected with an error. Once the callback is complete, then
+     * the promise returned by "then" with be resolved successfully. If
+     * rejectedCallback is null, or it returns a rejected Promise, then the
+     * Promise returned by "then" will be rejected with that error.
+     * @return {Parse.Promise} A new Promise that will be fulfilled after this
+     * Promise is fulfilled and either callback has completed. If the callback
+     * returned a Promise, then this Promise will not be fulfilled until that
+     * one is.
+     */
+    then: function(resolvedCallback, rejectedCallback) {
+      var promise = new Parse.Promise();
+
+      var wrappedResolvedCallback = function() {
+        var result = arguments;
+        if (resolvedCallback) {
+          if (Parse.Promise._isPromisesAPlusCompliant) {
+            try {
+              result = [resolvedCallback.apply(this, result)];
+            } catch (e) {
+              result = [Parse.Promise.error(e)];
+            }
+          } else {
+            result = [resolvedCallback.apply(this, result)];
+          }
+        }
+        if (result.length === 1 && Parse.Promise.is(result[0])) {
+          result[0].then(function() {
+            promise.resolve.apply(promise, arguments);
+          }, function(error) {
+            promise.reject(error);
+          });
+        } else {
+          promise.resolve.apply(promise, result);
+        }
+      };
+
+      var wrappedRejectedCallback = function(error) {
+        var result = [];
+        if (rejectedCallback) {
+          if (Parse.Promise._isPromisesAPlusCompliant) {
+            try {
+              result = [rejectedCallback(error)];
+            } catch (e) {
+              result = [Parse.Promise.error(e)];
+            }
+          } else {
+            result = [rejectedCallback(error)];
+          }
+          if (result.length === 1 && Parse.Promise.is(result[0])) {
+            result[0].then(function() {
+              promise.resolve.apply(promise, arguments);
+            }, function(error) {
+              promise.reject(error);
+            });
+          } else {
+            if (Parse.Promise._isPromisesAPlusCompliant) {
+              promise.resolve.apply(promise, result);
+            } else {
+              promise.reject(result[0]);
+            }
+          }
+        } else {
+          promise.reject(error);
+        }
+      };
+
+      var runLater = function(func) {
+        func.call();
+      };
+      if (Parse.Promise._isPromisesAPlusCompliant) {
+        if (typeof(window) !== 'undefined' && window.setTimeout) {
+          runLater = function(func) {
+            window.setTimeout(func, 0);
+          };
+        } else if (typeof(process) !== 'undefined' && process.nextTick) {
+          runLater = function(func) {
+            process.nextTick(func);
+          };
+        }
+      }
+
+      var self = this;
+      if (this._resolved) {
+        runLater(function() {
+          wrappedResolvedCallback.apply(self, self._result);
+        });
+      } else if (this._rejected) {
+        runLater(function() {
+          wrappedRejectedCallback(self._error);
+        });
+      } else {
+        this._resolvedCallbacks.push(wrappedResolvedCallback);
+        this._rejectedCallbacks.push(wrappedRejectedCallback);
+      }
+
+      return promise;
+    },
+
+    /**
+     * Add handlers to be called when the promise 
+     * is either resolved or rejected
+     */
+    always: function(callback) {
+      return this.then(callback, callback);
+    },
+
+    /**
+     * Add handlers to be called when the Promise object is resolved
+     */
+    done: function(callback) {
+      return this.then(callback);
+    },
+
+    /**
+     * Add handlers to be called when the Promise object is rejected
+     */
+    fail: function(callback) {
+      return this.then(null, callback);
+    },
+
+    /**
+     * Run the given callbacks after this promise is fulfilled.
+     * @param optionsOrCallback {} A Backbone-style options callback, or a
+     * callback function. If this is an options object and contains a "model"
+     * attributes, that will be passed to error callbacks as the first argument.
+     * @param model {} If truthy, this will be passed as the first result of
+     * error callbacks. This is for Backbone-compatability.
+     * @return {Parse.Promise} A promise that will be resolved after the
+     * callbacks are run, with the same result as this.
+     */
+    _thenRunCallbacks: function(optionsOrCallback, model) {
+      var options;
+      if (_.isFunction(optionsOrCallback)) {
+        var callback = optionsOrCallback;
+        options = {
+          success: function(result) {
+            callback(result, null);
+          },
+          error: function(error) {
+            callback(null, error);
+          }
+        };
+      } else {
+        options = _.clone(optionsOrCallback);
+      }
+      options = options || {};
+
+      return this.then(function(result) {
+        if (options.success) {
+          options.success.apply(this, arguments);
+        } else if (model) {
+          // When there's no callback, a sync event should be triggered.
+          model.trigger('sync', model, result, options);
+        }
+        return Parse.Promise.as.apply(Parse.Promise, arguments);
+      }, function(error) {
+        if (options.error) {
+          if (!_.isUndefined(model)) {
+            options.error(model, error);
+          } else {
+            options.error(error);
+          }
+        } else if (model) {
+          // When there's no error callback, an error event should be triggered.
+          model.trigger('error', model, error, options);
+        }
+        // By explicitly returning a rejected Promise, this will work with
+        // either jQuery or Promises/A semantics.
+        return Parse.Promise.error(error);
+      });
+    },
+
+    /**
+     * Adds a callback function that should be called regardless of whether
+     * this promise failed or succeeded. The callback will be given either the
+     * array of results for its first argument, or the error as its second,
+     * depending on whether this Promise was rejected or resolved. Returns a
+     * new Promise, like "then" would.
+     * @param {Function} continuation the callback.
+     */
+    _continueWith: function(continuation) {
+      return this.then(function() {
+        return continuation(arguments, null);
+      }, function(error) {
+        return continuation(null, error);
+      });
+    }
+
+  });
+
+}(this));
+
+/*jshint bitwise:false *//*global FileReader: true, File: true */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  var b64Digit = function(number) {
+    if (number < 26) {
+      return String.fromCharCode(65 + number);
+    }
+    if (number < 52) {
+      return String.fromCharCode(97 + (number - 26));
+    }
+    if (number < 62) {
+      return String.fromCharCode(48 + (number - 52));
+    }
+    if (number === 62) {
+      return "+";
+    }
+    if (number === 63) {
+      return "/";
+    }
+    throw "Tried to encode large digit " + number + " in base64.";
+  };
+
+  var encodeBase64 = function(array) {
+    var chunks = [];
+    chunks.length = Math.ceil(array.length / 3);
+    _.times(chunks.length, function(i) {
+      var b1 = array[i * 3];
+      var b2 = array[i * 3 + 1] || 0;
+      var b3 = array[i * 3 + 2] || 0;
+
+      var has2 = (i * 3 + 1) < array.length;
+      var has3 = (i * 3 + 2) < array.length;
+
+      chunks[i] = [
+        b64Digit((b1 >> 2) & 0x3F),
+        b64Digit(((b1 << 4) & 0x30) | ((b2 >> 4) & 0x0F)),
+        has2 ? b64Digit(((b2 << 2) & 0x3C) | ((b3 >> 6) & 0x03)) : "=",
+        has3 ? b64Digit(b3 & 0x3F) : "="
+      ].join("");
+    });
+    return chunks.join("");
+  };
+
+  
+  // A list of file extensions to mime types as found here:
+  // http://stackoverflow.com/questions/58510/using-net-how-can-you-find-the-
+  //     mime-type-of-a-file-based-on-the-file-signature
+  var mimeTypes = {
+    ai: "application/postscript",
+    aif: "audio/x-aiff",
+    aifc: "audio/x-aiff",
+    aiff: "audio/x-aiff",
+    asc: "text/plain",
+    atom: "application/atom+xml",
+    au: "audio/basic",
+    avi: "video/x-msvideo",
+    bcpio: "application/x-bcpio",
+    bin: "application/octet-stream",
+    bmp: "image/bmp",
+    cdf: "application/x-netcdf",
+    cgm: "image/cgm",
+    "class": "application/octet-stream",
+    cpio: "application/x-cpio",
+    cpt: "application/mac-compactpro",
+    csh: "application/x-csh",
+    css: "text/css",
+    dcr: "application/x-director",
+    dif: "video/x-dv",
+    dir: "application/x-director",
+    djv: "image/vnd.djvu",
+    djvu: "image/vnd.djvu",
+    dll: "application/octet-stream",
+    dmg: "application/octet-stream",
+    dms: "application/octet-stream",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml." +
+          "document",
+    dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml." +
+          "template",
+    docm: "application/vnd.ms-word.document.macroEnabled.12",
+    dotm: "application/vnd.ms-word.template.macroEnabled.12",
+    dtd: "application/xml-dtd",
+    dv: "video/x-dv",
+    dvi: "application/x-dvi",
+    dxr: "application/x-director",
+    eps: "application/postscript",
+    etx: "text/x-setext",
+    exe: "application/octet-stream",
+    ez: "application/andrew-inset",
+    gif: "image/gif",
+    gram: "application/srgs",
+    grxml: "application/srgs+xml",
+    gtar: "application/x-gtar",
+    hdf: "application/x-hdf",
+    hqx: "application/mac-binhex40",
+    htm: "text/html",
+    html: "text/html",
+    ice: "x-conference/x-cooltalk",
+    ico: "image/x-icon",
+    ics: "text/calendar",
+    ief: "image/ief",
+    ifb: "text/calendar",
+    iges: "model/iges",
+    igs: "model/iges",
+    jnlp: "application/x-java-jnlp-file",
+    jp2: "image/jp2",
+    jpe: "image/jpeg",
+    jpeg: "image/jpeg",
+    jpg: "image/jpeg",
+    js: "application/x-javascript",
+    kar: "audio/midi",
+    latex: "application/x-latex",
+    lha: "application/octet-stream",
+    lzh: "application/octet-stream",
+    m3u: "audio/x-mpegurl",
+    m4a: "audio/mp4a-latm",
+    m4b: "audio/mp4a-latm",
+    m4p: "audio/mp4a-latm",
+    m4u: "video/vnd.mpegurl",
+    m4v: "video/x-m4v",
+    mac: "image/x-macpaint",
+    man: "application/x-troff-man",
+    mathml: "application/mathml+xml",
+    me: "application/x-troff-me",
+    mesh: "model/mesh",
+    mid: "audio/midi",
+    midi: "audio/midi",
+    mif: "application/vnd.mif",
+    mov: "video/quicktime",
+    movie: "video/x-sgi-movie",
+    mp2: "audio/mpeg",
+    mp3: "audio/mpeg",
+    mp4: "video/mp4",
+    mpe: "video/mpeg",
+    mpeg: "video/mpeg",
+    mpg: "video/mpeg",
+    mpga: "audio/mpeg",
+    ms: "application/x-troff-ms",
+    msh: "model/mesh",
+    mxu: "video/vnd.mpegurl",
+    nc: "application/x-netcdf",
+    oda: "application/oda",
+    ogg: "application/ogg",
+    pbm: "image/x-portable-bitmap",
+    pct: "image/pict",
+    pdb: "chemical/x-pdb",
+    pdf: "application/pdf",
+    pgm: "image/x-portable-graymap",
+    pgn: "application/x-chess-pgn",
+    pic: "image/pict",
+    pict: "image/pict",
+    png: "image/png", 
+    pnm: "image/x-portable-anymap",
+    pnt: "image/x-macpaint",
+    pntg: "image/x-macpaint",
+    ppm: "image/x-portable-pixmap",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml." +
+          "presentation",
+    potx: "application/vnd.openxmlformats-officedocument.presentationml." +
+          "template",
+    ppsx: "application/vnd.openxmlformats-officedocument.presentationml." +
+          "slideshow",
+    ppam: "application/vnd.ms-powerpoint.addin.macroEnabled.12",
+    pptm: "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+    potm: "application/vnd.ms-powerpoint.template.macroEnabled.12",
+    ppsm: "application/vnd.ms-powerpoint.slideshow.macroEnabled.12",
+    ps: "application/postscript",
+    qt: "video/quicktime",
+    qti: "image/x-quicktime",
+    qtif: "image/x-quicktime",
+    ra: "audio/x-pn-realaudio",
+    ram: "audio/x-pn-realaudio",
+    ras: "image/x-cmu-raster",
+    rdf: "application/rdf+xml",
+    rgb: "image/x-rgb",
+    rm: "application/vnd.rn-realmedia",
+    roff: "application/x-troff",
+    rtf: "text/rtf",
+    rtx: "text/richtext",
+    sgm: "text/sgml",
+    sgml: "text/sgml",
+    sh: "application/x-sh",
+    shar: "application/x-shar",
+    silo: "model/mesh",
+    sit: "application/x-stuffit",
+    skd: "application/x-koan",
+    skm: "application/x-koan",
+    skp: "application/x-koan",
+    skt: "application/x-koan",
+    smi: "application/smil",
+    smil: "application/smil",
+    snd: "audio/basic",
+    so: "application/octet-stream",
+    spl: "application/x-futuresplash",
+    src: "application/x-wais-source",
+    sv4cpio: "application/x-sv4cpio",
+    sv4crc: "application/x-sv4crc",
+    svg: "image/svg+xml",
+    swf: "application/x-shockwave-flash",
+    t: "application/x-troff",
+    tar: "application/x-tar",
+    tcl: "application/x-tcl",
+    tex: "application/x-tex",
+    texi: "application/x-texinfo",
+    texinfo: "application/x-texinfo",
+    tif: "image/tiff",
+    tiff: "image/tiff",
+    tr: "application/x-troff",
+    tsv: "text/tab-separated-values",
+    txt: "text/plain",
+    ustar: "application/x-ustar",
+    vcd: "application/x-cdlink",
+    vrml: "model/vrml",
+    vxml: "application/voicexml+xml",
+    wav: "audio/x-wav",
+    wbmp: "image/vnd.wap.wbmp",
+    wbmxl: "application/vnd.wap.wbxml",
+    wml: "text/vnd.wap.wml",
+    wmlc: "application/vnd.wap.wmlc",
+    wmls: "text/vnd.wap.wmlscript",
+    wmlsc: "application/vnd.wap.wmlscriptc",
+    wrl: "model/vrml",
+    xbm: "image/x-xbitmap",
+    xht: "application/xhtml+xml",
+    xhtml: "application/xhtml+xml",
+    xls: "application/vnd.ms-excel",
+    xml: "application/xml",
+    xpm: "image/x-xpixmap",
+    xsl: "application/xml",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xltx: "application/vnd.openxmlformats-officedocument.spreadsheetml." +
+          "template",
+    xlsm: "application/vnd.ms-excel.sheet.macroEnabled.12",
+    xltm: "application/vnd.ms-excel.template.macroEnabled.12",
+    xlam: "application/vnd.ms-excel.addin.macroEnabled.12",
+    xlsb: "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+    xslt: "application/xslt+xml",
+    xul: "application/vnd.mozilla.xul+xml",
+    xwd: "image/x-xwindowdump",
+    xyz: "chemical/x-xyz",
+    zip: "application/zip"
+  };
+
+  /**
+   * Reads a File using a FileReader.
+   * @param file {File} the File to read.
+   * @param type {String} (optional) the mimetype to override with.
+   * @return {Parse.Promise} A Promise that will be fulfilled with a
+   *     base64-encoded string of the data and its mime type.
+   */
+  var readAsync = function(file, type) {
+    var promise = new Parse.Promise();
+
+    if (typeof(FileReader) === "undefined") {
+      return Parse.Promise.error(new Parse.Error(
+          Parse.Error.FILE_READ_ERROR,
+          "Attempted to use a FileReader on an unsupported browser."));
+    }
+
+    var reader = new FileReader();
+    reader.onloadend = function() {
+      if (reader.readyState !== 2) {
+        promise.reject(new Parse.Error(
+            Parse.Error.FILE_READ_ERROR,
+            "Error reading file."));
+        return;
+      }
+
+      var dataURL = reader.result;
+      var matches = /^data:([^;]*);base64,(.*)$/.exec(dataURL);
+      if (!matches) {
+        promise.reject(new Parse.Error(
+            Parse.Error.FILE_READ_ERROR,
+            "Unable to interpret data URL: " + dataURL));
+        return;
+      }
+
+      promise.resolve(matches[2], type || matches[1]);
+    };
+    reader.readAsDataURL(file);
+    return promise;
+  };
+
+  /**
+   * A Parse.File is a local representation of a file that is saved to the Parse
+   * cloud.
+   * @class
+   * @param name {String} The file's name. This will be prefixed by a unique
+   *     value once the file has finished saving. The file name must begin with
+   *     an alphanumeric character, and consist of alphanumeric characters,
+   *     periods, spaces, underscores, or dashes.
+   * @param data {Array} The data for the file, as either:
+   *     1. an Array of byte value Numbers, or
+   *     2. an Object like { base64: "..." } with a base64-encoded String.
+   *     3. a File object selected with a file upload control. (3) only works
+   *        in Firefox 3.6+, Safari 6.0.2+, Chrome 7+, and IE 10+.
+   *        For example:<pre>
+   * var fileUploadControl = $("#profilePhotoFileUpload")[0];
+   * if (fileUploadControl.files.length > 0) {
+   *   var file = fileUploadControl.files[0];
+   *   var name = "photo.jpg";
+   *   var parseFile = new Parse.File(name, file);
+   *   parseFile.save().then(function() {
+   *     // The file has been saved to Parse.
+   *   }, function(error) {
+   *     // The file either could not be read, or could not be saved to Parse.
+   *   });
+   * }</pre>
+   * @param type {String} Optional Content-Type header to use for the file. If
+   *     this is omitted, the content type will be inferred from the name's
+   *     extension.
+   */
+  Parse.File = function(name, data, type) {
+    this._name = name;
+
+    // Guess the content type from the extension if we need to.
+    var extension = /\.([^.]*)$/.exec(name);
+    if (extension) {
+      extension = extension[1].toLowerCase();
+    }
+    var guessedType = type || mimeTypes[extension] || "text/plain";
+
+    if (_.isArray(data)) {
+      this._source = Parse.Promise.as(encodeBase64(data), guessedType);
+    } else if (data && data.base64) {
+      // if it contains data uri, extract based64 and the type out of it.
+      /*jslint maxlen: 1000*/
+      var dataUriRegexp = /^data:([a-zA-Z]*\/[a-zA-Z+.-]*);(charset=[a-zA-Z0-9\-\/\s]*,)?base64,(\S+)/;
+      /*jslint maxlen: 80*/
+
+      var matches = dataUriRegexp.exec(data.base64);
+      if (matches && matches.length > 0) {
+        // if data URI with charset, there will have 4 matches.
+        this._source = Parse.Promise.as(
+          (matches.length === 4 ? matches[3] : matches[2]), matches[1]
+        );
+      } else {
+        this._source = Parse.Promise.as(data.base64, guessedType);
+      }
+    } else if (typeof(File) !== "undefined" && data instanceof File) {
+      this._source = readAsync(data, type);
+    } else if (_.isString(data)) {
+      throw "Creating a Parse.File from a String is not yet supported.";
+    }
+  };
+
+  Parse.File.prototype = {
+
+    /**
+     * Gets the name of the file. Before save is called, this is the filename
+     * given by the user. After save is called, that name gets prefixed with a
+     * unique identifier.
+     */
+    name: function() {
+      return this._name;
+    },
+
+    /**
+     * Gets the url of the file. It is only available after you save the file or
+     * after you get the file from a Parse.Object.
+     * @return {String}
+     */
+    url: function() {
+      return this._url;
+    },
+
+    /**
+     * Saves the file to the Parse cloud.
+     * @param {Object} options A Backbone-style options object.
+     * @return {Parse.Promise} Promise that is resolved when the save finishes.
+     */
+    save: function(options) {
+      options= options || {};
+
+      var self = this;
+      if (!self._previousSave) {
+        self._previousSave = self._source.then(function(base64, type) {
+          var data = {
+            base64: base64,
+            _ContentType: type
+          };
+          return Parse._request({
+            route: "files",
+            className: self._name,
+            method: 'POST',
+            data: data,
+            useMasterKey: options.useMasterKey
+          });
+
+        }).then(function(response) {
+          self._name = response.name;
+          self._url = response.url;
+          return self;
+        });
+      }
+      return self._previousSave._thenRunCallbacks(options);
+    }
+  };
+
+}(this));
+
+// Parse.Object is analogous to the Java ParseObject.
+// It also implements the same interface as a Backbone model.
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Creates a new model with defined attributes. A client id (cid) is
+   * automatically generated and assigned for you.
+   *
+   * <p>You won't normally call this method directly.  It is recommended that
+   * you use a subclass of <code>Parse.Object</code> instead, created by calling
+   * <code>extend</code>.</p>
+   *
+   * <p>However, if you don't want to use a subclass, or aren't sure which
+   * subclass is appropriate, you can use this form:<pre>
+   *     var object = new Parse.Object("ClassName");
+   * </pre>
+   * That is basically equivalent to:<pre>
+   *     var MyClass = Parse.Object.extend("ClassName");
+   *     var object = new MyClass();
+   * </pre></p>
+   *
+   * @param {Object} attributes The initial set of data to store in the object.
+   * @param {Object} options A set of Backbone-like options for creating the
+   *     object.  The only option currently supported is "collection".
+   * @see Parse.Object.extend
+   *
+   * @class
+   *
+   * <p>The fundamental unit of Parse data, which implements the Backbone Model
+   * interface.</p>
+   */
+  Parse.Object = function(attributes, options) {
+    // Allow new Parse.Object("ClassName") as a shortcut to _create.
+    if (_.isString(attributes)) {
+      return Parse.Object._create.apply(this, arguments);
+    }
+
+    attributes = attributes || {};
+    if (options && options.parse) {
+      attributes = this.parse(attributes);
+    }
+    var defaults = Parse._getValue(this, 'defaults');
+    if (defaults) {
+      attributes = _.extend({}, defaults, attributes);
+    }
+    if (options && options.collection) {
+      this.collection = options.collection;
+    }
+
+    this._serverData = {};  // The last known data for this object from cloud.
+    this._opSetQueue = [{}];  // List of sets of changes to the data.
+    this.attributes = {};  // The best estimate of this's current data.
+
+    this._hashedJSON = {};  // Hash of values of containers at last save.
+    this._escapedAttributes = {};
+    this.cid = _.uniqueId('c');
+    this.changed = {};
+    this._silent = {};
+    this._pending = {};
+    if (!this.set(attributes, {silent: true})) {
+      throw new Error("Can't create an invalid Parse.Object");
+    }
+    this.changed = {};
+    this._silent = {};
+    this._pending = {};
+    this._hasData = true;
+    this._previousAttributes = _.clone(this.attributes);
+    this.initialize.apply(this, arguments);
+  };
+
+  /**
+   * The ID of this object, unique within its class.
+   * @name id
+   * @type String
+   * @field
+   * @memberOf Parse.Object.prototype
+   */
+
+  /**
+   * The first time this object was saved on the server.
+   * @name createdAt
+   * @type Date
+   * @field
+   * @memberOf Parse.Object.prototype
+   */
+
+  /**
+   * The last time this object was updated on the server.
+   * @name updatedAt
+   * @type Date
+   * @field
+   * @memberOf Parse.Object.prototype
+   */
+
+  /**
+   * Saves the given list of Parse.Object.
+   * If any error is encountered, stops and calls the error handler.
+   *
+   * <pre>
+   *   Parse.Object.saveAll([object1, object2, ...], {
+   *     success: function(list) {
+   *       // All the objects were saved.
+   *     },
+   *     error: function(error) {
+   *       // An error occurred while saving one of the objects.
+   *     },
+   *   });
+   * </pre>
+   *
+   * @param {Array} list A list of <code>Parse.Object</code>.
+   * @param {Object} options A Backbone-style callback object.
+   * Valid options are:<ul>
+   *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+   *     be used for this request.
+   * </ul>
+   */
+  Parse.Object.saveAll = function(list, options) {
+    options = options || {};
+    return Parse.Object._deepSaveAsync(list, {
+      useMasterKey: options.useMasterKey
+    })._thenRunCallbacks(options);
+  };
+
+  /**
+   * Destroy the given list of models on the server if it was already persisted.
+   * Optimistically removes each model from its collection, if it has one.
+   * If `wait: true` is passed, waits for the server to respond before removal.
+   *
+   * <p>Unlike saveAll, if an error occurs while deleting an individual model,
+   * this method will continue trying to delete the rest of the models if
+   * possible, except in the case of a fatal error like a connection error.
+   *
+   * <p>In particular, the Parse.Error object returned in the case of error may
+   * be one of two types:
+   *
+   * <ul>
+   *   <li>A Parse.Error.AGGREGATE_ERROR. This object's "errors" property is an
+   *       array of other Parse.Error objects. Each error object in this array
+   *       has an "object" property that references the object that could not be
+   *       deleted (for instance, because that object could not be found).</li>
+   *   <li>A non-aggregate Parse.Error. This indicates a serious error that
+   *       caused the delete operation to be aborted partway through (for
+   *       instance, a connection failure in the middle of the delete).</li>
+   * </ul>
+   *
+   * <pre>
+   *   Parse.Object.destroyAll([object1, object2, ...], {
+   *     success: function() {
+   *       // All the objects were deleted.
+   *     },
+   *     error: function(error) {
+   *       // An error occurred while deleting one or more of the objects.
+   *       // If this is an aggregate error, then we can inspect each error
+   *       // object individually to determine the reason why a particular
+   *       // object was not deleted.
+   *       if (error.code == Parse.Error.AGGREGATE_ERROR) {
+   *         for (var i = 0; i < error.errors.length; i++) {
+   *           console.log("Couldn't delete " + error.errors[i].object.id +
+   *             "due to " + error.errors[i].message);
+   *         }
+   *       } else {
+   *         console.log("Delete aborted because of " + error.message);
+   *       }
+   *     },
+   *   });
+   * </pre>
+   *
+   * @param {Array} list A list of <code>Parse.Object</code>.
+   * @param {Object} options A Backbone-style callback object.
+   * Valid options are:<ul>
+   *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+   *     be used for this request.
+   * </ul>
+   * @return {Parse.Promise} A promise that is fulfilled when the destroyAll
+   *     completes.
+   */
+  Parse.Object.destroyAll = function(list, options) {
+    options = options || {};
+
+    var triggerDestroy = function(object) {
+      object.trigger('destroy', object, object.collection, options);
+    };
+
+    var errors = [];
+    var destroyBatch = function(batch) {
+      var promise = Parse.Promise.as();
+
+      if (batch.length > 0) {
+        promise = promise.then(function() {
+          return Parse._request({
+            route: "batch",
+            method: "POST",
+            useMasterKey: options.useMasterKey,
+            data: {
+              requests: _.map(batch, function(object) {
+                return {
+                  method: "DELETE",
+                  path: "/1/classes/" + object.className + "/" + object.id
+                };
+              })
+            }
+          });
+        }).then(function(responses, status, xhr) {
+          Parse._arrayEach(batch, function(object, i) {
+            if (responses[i].success && options.wait) {
+              triggerDestroy(object);
+            } else if (responses[i].error) {
+              var error = new Parse.Error(responses[i].error.code,
+                                          responses[i].error.error);
+              error.object = object;
+
+              errors.push(error);
+            }
+          });
+        });
+      }
+
+      return promise;
+    };
+
+    var promise = Parse.Promise.as();
+    var batch = [];
+    Parse._arrayEach(list, function(object, i) {
+      if (!object.id || !options.wait) {
+        triggerDestroy(object);
+      }
+
+      if (object.id) {
+        batch.push(object);
+      }
+
+      if (batch.length === 20 || i+1 === list.length) {
+        var thisBatch = batch;
+        batch = [];
+
+        promise = promise.then(function() {
+          return destroyBatch(thisBatch);
+        });
+      }
+    });
+
+    return promise.then(function() {
+      if (errors.length === 0) {
+        return true;
+      } else {
+        var error = new Parse.Error(Parse.Error.AGGREGATE_ERROR,
+                                    "Error deleting an object in destroyAll");
+        error.errors = errors;
+
+        return Parse.Promise.error(error);
+      }
+    })._thenRunCallbacks(options);
+  };
+
+  /**
+   * Fetches the given list of Parse.Object.
+   * If any error is encountered, stops and calls the error handler.
+   *
+   * <pre>
+   *   Parse.Object.fetchAll([object1, object2, ...], {
+   *     success: function(list) {
+   *       // All the objects were fetched.
+   *     },
+   *     error: function(error) {
+   *       // An error occurred while fetching one of the objects.
+   *     },
+   *   });
+   * </pre>
+   *
+   * @param {Array} list A list of <code>Parse.Object</code>.
+   * @param {Object} options A Backbone-style callback object.
+   * Valid options are:<ul>
+   *   <li>success: A Backbone-style success callback.
+   *   <li>error: An Backbone-style error callback.
+   * </ul>
+   */
+  Parse.Object.fetchAll = function(list, options) {
+    return Parse.Object._fetchAll(
+      list,
+      true
+    )._thenRunCallbacks(options);
+  };
+
+  /**
+   * Fetches the given list of Parse.Object if needed.
+   * If any error is encountered, stops and calls the error handler.
+   *
+   * <pre>
+   *   Parse.Object.fetchAllIfNeeded([object1, ...], {
+   *     success: function(list) {
+   *       // Objects were fetched and updated.
+   *     },
+   *     error: function(error) {
+   *       // An error occurred while fetching one of the objects.
+   *     },
+   *   });
+   * </pre>
+   *
+   * @param {Array} list A list of <code>Parse.Object</code>.
+   * @param {Object} options A Backbone-style callback object.
+   * Valid options are:<ul>
+   *   <li>success: A Backbone-style success callback.
+   *   <li>error: An Backbone-style error callback.
+   * </ul>
+   */
+  Parse.Object.fetchAllIfNeeded = function(list, options) {
+    return Parse.Object._fetchAll(
+      list,
+      false
+    )._thenRunCallbacks(options);
+  };
+
+  // Attach all inheritable methods to the Parse.Object prototype.
+  _.extend(Parse.Object.prototype, Parse.Events,
+           /** @lends Parse.Object.prototype */ {
+    _existed: false,
+
+    /**
+     * Initialize is an empty function by default. Override it with your own
+     * initialization logic.
+     */
+    initialize: function(){},
+
+    /**
+     * Returns a JSON version of the object suitable for saving to Parse.
+     * @return {Object}
+     */
+    toJSON: function() {
+      var json = this._toFullJSON();
+      Parse._arrayEach(["__type", "className"],
+                       function(key) { delete json[key]; });
+      return json;
+    },
+
+    _toFullJSON: function(seenObjects) {
+      var json = _.clone(this.attributes);
+      Parse._objectEach(json, function(val, key) {
+        json[key] = Parse._encode(val, seenObjects);
+      });
+      Parse._objectEach(this._operations, function(val, key) {
+        json[key] = val;
+      });
+
+      if (_.has(this, "id")) {
+        json.objectId = this.id;
+      }
+      if (_.has(this, "createdAt")) {
+        if (_.isDate(this.createdAt)) {
+          json.createdAt = this.createdAt.toJSON();
+        } else {
+          json.createdAt = this.createdAt;
+        }
+      }
+
+      if (_.has(this, "updatedAt")) {
+        if (_.isDate(this.updatedAt)) {
+          json.updatedAt = this.updatedAt.toJSON();
+        } else {
+          json.updatedAt = this.updatedAt;
+        }
+      }
+      json.__type = "Object";
+      json.className = this.className;
+      return json;
+    },
+
+    /**
+     * Updates _hashedJSON to reflect the current state of this object.
+     * Adds any changed hash values to the set of pending changes.
+     */
+    _refreshCache: function() {
+      var self = this;
+      if (self._refreshingCache) {
+        return;
+      }
+      self._refreshingCache = true;
+      Parse._objectEach(this.attributes, function(value, key) {
+        if (value instanceof Parse.Object) {
+          value._refreshCache();
+        } else if (_.isObject(value)) {
+          var objectArray = false;
+          if (_.isArray(value)) {
+            // We don't cache arrays of Parse.Objects
+            _.each(value, function(arrVal) {
+              if (arrVal instanceof Parse.Object) {
+                objectArray = true;
+                arrVal._refreshCache();
+              }
+            });
+          }
+          if (!objectArray && self._resetCacheForKey(key)) {
+            self.set(key, new Parse.Op.Set(value), { silent: true });
+          }
+        }
+      });
+      delete self._refreshingCache;
+    },
+
+    /**
+     * Returns true if this object has been modified since its last
+     * save/refresh.  If an attribute is specified, it returns true only if that
+     * particular attribute has been modified since the last save/refresh.
+     * @param {String} attr An attribute name (optional).
+     * @return {Boolean}
+     */
+    dirty: function(attr) {
+      this._refreshCache();
+
+      var currentChanges = _.last(this._opSetQueue);
+
+      if (attr) {
+        return (currentChanges[attr] ? true : false);
+      }
+      if (!this.id) {
+        return true;
+      }
+      if (_.keys(currentChanges).length > 0) {
+        return true;
+      }
+      return false;
+    },
+
+    /**
+     * Returns an array of keys that have been modified since last save/refresh
+     * @return {Array of string}
+     */
+    dirtyKeys: function() {
+      return _.keys(_.last(this._opSetQueue));
+    },
+
+    /**
+     * Gets a Pointer referencing this Object.
+     */
+    _toPointer: function() {
+      if (!this.id) {
+        throw new Error("Can't serialize an unsaved Parse.Object");
+      }
+      return { __type: "Pointer",
+               className: this.className,
+               objectId: this.id };
+    },
+
+    /**
+     * Gets the value of an attribute.
+     * @param {String} attr The string name of an attribute.
+     */
+    get: function(attr) {
+      return this.attributes[attr];
+    },
+
+    /**
+     * Gets a relation on the given class for the attribute.
+     * @param String attr The attribute to get the relation for.
+     */
+    relation: function(attr) {
+      var value = this.get(attr);
+      if (value) {
+        if (!(value instanceof Parse.Relation)) {
+          throw "Called relation() on non-relation field " + attr;
+        }
+        value._ensureParentAndKey(this, attr);
+        return value;
+      } else {
+        return new Parse.Relation(this, attr);
+      }
+    },
+
+    /**
+     * Gets the HTML-escaped value of an attribute.
+     */
+    escape: function(attr) {
+      var html = this._escapedAttributes[attr];
+      if (html) {
+        return html;
+      }
+      var val = this.attributes[attr];
+      var escaped;
+      if (Parse._isNullOrUndefined(val)) {
+        escaped = '';
+      } else {
+        escaped = _.escape(val.toString());
+      }
+      this._escapedAttributes[attr] = escaped;
+      return escaped;
+    },
+
+    /**
+     * Returns <code>true</code> if the attribute contains a value that is not
+     * null or undefined.
+     * @param {String} attr The string name of the attribute.
+     * @return {Boolean}
+     */
+    has: function(attr) {
+      return !Parse._isNullOrUndefined(this.attributes[attr]);
+    },
+
+    /**
+     * Pulls "special" fields like objectId, createdAt, etc. out of attrs
+     * and puts them on "this" directly.  Removes them from attrs.
+     * @param attrs - A dictionary with the data for this Parse.Object.
+     */
+    _mergeMagicFields: function(attrs) {
+      // Check for changes of magic fields.
+      var model = this;
+      var specialFields = ["id", "objectId", "createdAt", "updatedAt"];
+      Parse._arrayEach(specialFields, function(attr) {
+        if (attrs[attr]) {
+          if (attr === "objectId") {
+            model.id = attrs[attr];
+          } else if ((attr === "createdAt" || attr === "updatedAt") &&
+                     !_.isDate(attrs[attr])) {
+            model[attr] = Parse._parseDate(attrs[attr]);
+          } else {
+            model[attr] = attrs[attr];
+          }
+          delete attrs[attr];
+        }
+      });
+    },
+
+    /**
+     * Copies the given serverData to "this", refreshes attributes, and
+     * clears pending changes;
+     */
+    _copyServerData: function(serverData) {
+      // Copy server data
+      var tempServerData = {};
+      Parse._objectEach(serverData, function(value, key) {
+        tempServerData[key] = Parse._decode(key, value);
+      });
+      this._serverData = tempServerData;
+
+      // Refresh the attributes.
+      this._rebuildAllEstimatedData();
+
+      
+      // Clear out any changes the user might have made previously.
+      this._refreshCache();
+      this._opSetQueue = [{}];
+
+      // Refresh the attributes again.
+      this._rebuildAllEstimatedData();
+    },
+
+    /**
+     * Merges another object's attributes into this object.
+     */
+    _mergeFromObject: function(other) {
+      if (!other) {
+        return;
+      }
+
+      // This does the inverse of _mergeMagicFields.
+      this.id = other.id;
+      this.createdAt = other.createdAt;
+      this.updatedAt = other.updatedAt;
+
+      this._copyServerData(other._serverData);
+
+      this._hasData = true;
+    },
+
+    /**
+     * Returns the json to be sent to the server.
+     */
+    _startSave: function() {
+      this._opSetQueue.push({});
+    },
+
+    /**
+     * Called when a save fails because of an error. Any changes that were part
+     * of the save need to be merged with changes made after the save. This
+     * might throw an exception is you do conflicting operations. For example,
+     * if you do:
+     *   object.set("foo", "bar");
+     *   object.set("invalid field name", "baz");
+     *   object.save();
+     *   object.increment("foo");
+     * then this will throw when the save fails and the client tries to merge
+     * "bar" with the +1.
+     */
+    _cancelSave: function() {
+      var self = this;
+      var failedChanges = _.first(this._opSetQueue);
+      this._opSetQueue = _.rest(this._opSetQueue);
+      var nextChanges = _.first(this._opSetQueue);
+      Parse._objectEach(failedChanges, function(op, key) {
+        var op1 = failedChanges[key];
+        var op2 = nextChanges[key];
+        if (op1 && op2) {
+          nextChanges[key] = op2._mergeWithPrevious(op1);
+        } else if (op1) {
+          nextChanges[key] = op1;
+        }
+      });
+      this._saving = this._saving - 1;
+    },
+
+    /**
+     * Called when a save completes successfully. This merges the changes that
+     * were saved into the known server data, and overrides it with any data
+     * sent directly from the server.
+     */
+    _finishSave: function(serverData) {
+      // Grab a copy of any object referenced by this object. These instances
+      // may have already been fetched, and we don't want to lose their data.
+      // Note that doing it like this means we will unify separate copies of the
+      // same object, but that's a risk we have to take.
+      var fetchedObjects = {};
+      Parse._traverse(this.attributes, function(object) {
+        if (object instanceof Parse.Object && object.id && object._hasData) {
+          fetchedObjects[object.id] = object;
+        }
+      });
+
+      var savedChanges = _.first(this._opSetQueue);
+      this._opSetQueue = _.rest(this._opSetQueue);
+      this._applyOpSet(savedChanges, this._serverData);
+      this._mergeMagicFields(serverData);
+      var self = this;
+      Parse._objectEach(serverData, function(value, key) {
+        self._serverData[key] = Parse._decode(key, value);
+
+        // Look for any objects that might have become unfetched and fix them
+        // by replacing their values with the previously observed values.
+        var fetched = Parse._traverse(self._serverData[key], function(object) {
+          if (object instanceof Parse.Object && fetchedObjects[object.id]) {
+            return fetchedObjects[object.id];
+          }
+        });
+        if (fetched) {
+          self._serverData[key] = fetched;
+        }
+      });
+      this._rebuildAllEstimatedData();
+      this._saving = this._saving - 1;
+    },
+
+    /**
+     * Called when a fetch or login is complete to set the known server data to
+     * the given object.
+     */
+    _finishFetch: function(serverData, hasData) {
+      
+      this._opSetQueue = [{}];
+
+      // Bring in all the new server data.
+      this._mergeMagicFields(serverData);
+      this._copyServerData(serverData);
+
+      this._hasData = hasData;
+    },
+
+    /**
+     * Applies the set of Parse.Op in opSet to the object target.
+     */
+    _applyOpSet: function(opSet, target) {
+      var self = this;
+      Parse._objectEach(opSet, function(change, key) {
+        target[key] = change._estimate(target[key], self, key);
+        if (target[key] === Parse.Op._UNSET) {
+          delete target[key];
+        }
+      });
+    },
+
+    /**
+     * Replaces the cached value for key with the current value.
+     * Returns true if the new value is different than the old value.
+     */
+    _resetCacheForKey: function(key) {
+      var value = this.attributes[key];
+      if (_.isObject(value) &&
+          !(value instanceof Parse.Object) &&
+          !(value instanceof Parse.File)) {
+        value = value.toJSON ? value.toJSON() : value;
+        var json = JSON.stringify(value);
+        if (this._hashedJSON[key] !== json) {
+          var wasSet = !!this._hashedJSON[key];
+          this._hashedJSON[key] = json;
+          return wasSet;
+        }
+      }
+      return false;
+    },
+
+    /**
+     * Populates attributes[key] by starting with the last known data from the
+     * server, and applying all of the local changes that have been made to that
+     * key since then.
+     */
+    _rebuildEstimatedDataForKey: function(key) {
+      var self = this;
+      delete this.attributes[key];
+      if (this._serverData[key]) {
+        this.attributes[key] = this._serverData[key];
+      }
+      Parse._arrayEach(this._opSetQueue, function(opSet) {
+        var op = opSet[key];
+        if (op) {
+          self.attributes[key] = op._estimate(self.attributes[key], self, key);
+          if (self.attributes[key] === Parse.Op._UNSET) {
+            delete self.attributes[key];
+          } else {
+            self._resetCacheForKey(key);
+          }
+        }
+      });
+    },
+
+    /**
+     * Populates attributes by starting with the last known data from the
+     * server, and applying all of the local changes that have been made since
+     * then.
+     */
+    _rebuildAllEstimatedData: function() {
+      var self = this;
+
+      var previousAttributes = _.clone(this.attributes);
+
+      this.attributes = _.clone(this._serverData);
+      Parse._arrayEach(this._opSetQueue, function(opSet) {
+        self._applyOpSet(opSet, self.attributes);
+        Parse._objectEach(opSet, function(op, key) {
+          self._resetCacheForKey(key);
+        });
+      });
+
+      // Trigger change events for anything that changed because of the fetch.
+      Parse._objectEach(previousAttributes, function(oldValue, key) {
+        if (self.attributes[key] !== oldValue) {
+          self.trigger('change:' + key, self, self.attributes[key], {});
+        }
+      });
+      Parse._objectEach(this.attributes, function(newValue, key) {
+        if (!_.has(previousAttributes, key)) {
+          self.trigger('change:' + key, self, newValue, {});
+        }
+      });
+    },
+
+    /**
+     * Sets a hash of model attributes on the object, firing
+     * <code>"change"</code> unless you choose to silence it.
+     *
+     * <p>You can call it with an object containing keys and values, or with one
+     * key and value.  For example:<pre>
+     *   gameTurn.set({
+     *     player: player1,
+     *     diceRoll: 2
+     *   }, {
+     *     error: function(gameTurnAgain, error) {
+     *       // The set failed validation.
+     *     }
+     *   });
+     *
+     *   game.set("currentPlayer", player2, {
+     *     error: function(gameTurnAgain, error) {
+     *       // The set failed validation.
+     *     }
+     *   });
+     *
+     *   game.set("finished", true);</pre></p>
+     *
+     * @param {String} key The key to set.
+     * @param {} value The value to give it.
+     * @param {Object} options A set of Backbone-like options for the set.
+     *     The only supported options are <code>silent</code>,
+     *     <code>error</code>, and <code>promise</code>.
+     * @return {Boolean} true if the set succeeded.
+     * @see Parse.Object#validate
+     * @see Parse.Error
+     */
+    set: function(key, value, options) {
+      var attrs, attr;
+      if (_.isObject(key) || Parse._isNullOrUndefined(key)) {
+        attrs = key;
+        Parse._objectEach(attrs, function(v, k) {
+          attrs[k] = Parse._decode(k, v);
+        });
+        options = value;
+      } else {
+        attrs = {};
+        attrs[key] = Parse._decode(key, value);
+      }
+
+      // Extract attributes and options.
+      options = options || {};
+      if (!attrs) {
+        return this;
+      }
+      if (attrs instanceof Parse.Object) {
+        attrs = attrs.attributes;
+      }
+
+      var self = this;
+      Parse._objectEach(attrs, function(unused_value, key) {
+        if (self.constructor.readOnlyAttributes &&
+          self.constructor.readOnlyAttributes[key]) {
+          throw new Error('Cannot modify readonly key: ' + key);
+        }
+      });
+
+      // If the unset option is used, every attribute should be a Unset.
+      if (options.unset) {
+        Parse._objectEach(attrs, function(unused_value, key) {
+          attrs[key] = new Parse.Op.Unset();
+        });
+      }
+
+      // Apply all the attributes to get the estimated values.
+      var dataToValidate = _.clone(attrs);
+      Parse._objectEach(dataToValidate, function(value, key) {
+        if (value instanceof Parse.Op) {
+          dataToValidate[key] = value._estimate(self.attributes[key],
+                                                self, key);
+          if (dataToValidate[key] === Parse.Op._UNSET) {
+            delete dataToValidate[key];
+          }
+        }
+      });
+
+      // Run validation.
+      if (!this._validate(attrs, options)) {
+        return false;
+      }
+
+      this._mergeMagicFields(attrs);
+
+      options.changes = {};
+      var escaped = this._escapedAttributes;
+      var prev = this._previousAttributes || {};
+
+      // Update attributes.
+      Parse._arrayEach(_.keys(attrs), function(attr) {
+        var val = attrs[attr];
+
+        // If this is a relation object we need to set the parent correctly,
+        // since the location where it was parsed does not have access to
+        // this object.
+        if (val instanceof Parse.Relation) {
+          val.parent = self;
+        }
+
+        if (!(val instanceof Parse.Op)) {
+          val = new Parse.Op.Set(val);
+        }
+
+        // See if this change will actually have any effect.
+        var isRealChange = true;
+        if (val instanceof Parse.Op.Set &&
+            _.isEqual(self.attributes[attr], val.value)) {
+          isRealChange = false;
+        }
+
+        if (isRealChange) {
+          delete escaped[attr];
+          if (options.silent) {
+            self._silent[attr] = true;
+          } else {
+            options.changes[attr] = true;
+          }
+        }
+
+        var currentChanges = _.last(self._opSetQueue);
+        currentChanges[attr] = val._mergeWithPrevious(currentChanges[attr]);
+        self._rebuildEstimatedDataForKey(attr);
+
+        if (isRealChange) {
+          self.changed[attr] = self.attributes[attr];
+          if (!options.silent) {
+            self._pending[attr] = true;
+          }
+        } else {
+          delete self.changed[attr];
+          delete self._pending[attr];
+        }
+      });
+
+      if (!options.silent) {
+        this.change(options);
+      }
+      return this;
+    },
+
+    /**
+     * Remove an attribute from the model, firing <code>"change"</code> unless
+     * you choose to silence it. This is a noop if the attribute doesn't
+     * exist.
+     */
+    unset: function(attr, options) {
+      options = options || {};
+      options.unset = true;
+      return this.set(attr, null, options);
+    },
+
+    /**
+     * Atomically increments the value of the given attribute the next time the
+     * object is saved. If no amount is specified, 1 is used by default.
+     *
+     * @param attr {String} The key.
+     * @param amount {Number} The amount to increment by.
+     */
+    increment: function(attr, amount) {
+      if (_.isUndefined(amount) || _.isNull(amount)) {
+        amount = 1;
+      }
+      return this.set(attr, new Parse.Op.Increment(amount));
+    },
+
+    /**
+     * Atomically add an object to the end of the array associated with a given
+     * key.
+     * @param attr {String} The key.
+     * @param item {} The item to add.
+     */
+    add: function(attr, item) {
+      return this.set(attr, new Parse.Op.Add([item]));
+    },
+
+    /**
+     * Atomically add an object to the array associated with a given key, only
+     * if it is not already present in the array. The position of the insert is
+     * not guaranteed.
+     *
+     * @param attr {String} The key.
+     * @param item {} The object to add.
+     */
+    addUnique: function(attr, item) {
+      return this.set(attr, new Parse.Op.AddUnique([item]));
+    },
+
+    /**
+     * Atomically remove all instances of an object from the array associated
+     * with a given key.
+     *
+     * @param attr {String} The key.
+     * @param item {} The object to remove.
+     */
+    remove: function(attr, item) {
+      return this.set(attr, new Parse.Op.Remove([item]));
+    },
+
+    /**
+     * Returns an instance of a subclass of Parse.Op describing what kind of
+     * modification has been performed on this field since the last time it was
+     * saved. For example, after calling object.increment("x"), calling
+     * object.op("x") would return an instance of Parse.Op.Increment.
+     *
+     * @param attr {String} The key.
+     * @returns {Parse.Op} The operation, or undefined if none.
+     */
+    op: function(attr) {
+      return _.last(this._opSetQueue)[attr];
+    },
+
+    /**
+     * Clear all attributes on the model, firing <code>"change"</code> unless
+     * you choose to silence it.
+     */
+    clear: function(options) {
+      options = options || {};
+      options.unset = true;
+      var keysToClear = _.extend(this.attributes, this._operations);
+      return this.set(keysToClear, options);
+    },
+
+    /**
+     * Returns a JSON-encoded set of operations to be sent with the next save
+     * request.
+     */
+    _getSaveJSON: function() {
+      var json = _.clone(_.first(this._opSetQueue));
+      Parse._objectEach(json, function(op, key) {
+        json[key] = op.toJSON();
+      });
+      return json;
+    },
+
+    /**
+     * Returns true if this object can be serialized for saving.
+     */
+    _canBeSerialized: function() {
+      return Parse.Object._canBeSerializedAsValue(this.attributes);
+    },
+
+    /**
+     * Fetch the model from the server. If the server's representation of the
+     * model differs from its current attributes, they will be overriden,
+     * triggering a <code>"change"</code> event.
+     *
+     * @param {Object} options A Backbone-style callback object.
+     * Valid options are:<ul>
+     *   <li>success: A Backbone-style success callback.
+     *   <li>error: An Backbone-style error callback.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     * @return {Parse.Promise} A promise that is fulfilled when the fetch
+     *     completes.
+     */
+    fetch: function(options) {
+      var self = this;
+      options = options || {};
+      var request = Parse._request({
+        method: 'GET',
+        route: "classes",
+        className: this.className,
+        objectId: this.id,
+        useMasterKey: options.useMasterKey
+      });
+      return request.then(function(response, status, xhr) {
+        self._finishFetch(self.parse(response, status, xhr), true);
+        return self;
+      })._thenRunCallbacks(options, this);
+    },
+
+    /**
+     * Set a hash of model attributes, and save the model to the server.
+     * updatedAt will be updated when the request returns.
+     * You can either call it as:<pre>
+     *   object.save();</pre>
+     * or<pre>
+     *   object.save(null, options);</pre>
+     * or<pre>
+     *   object.save(attrs, options);</pre>
+     * or<pre>
+     *   object.save(key, value, options);</pre>
+     *
+     * For example, <pre>
+     *   gameTurn.save({
+     *     player: "Jake Cutter",
+     *     diceRoll: 2
+     *   }, {
+     *     success: function(gameTurnAgain) {
+     *       // The save was successful.
+     *     },
+     *     error: function(gameTurnAgain, error) {
+     *       // The save failed.  Error is an instance of Parse.Error.
+     *     }
+     *   });</pre>
+     * or with promises:<pre>
+     *   gameTurn.save({
+     *     player: "Jake Cutter",
+     *     diceRoll: 2
+     *   }).then(function(gameTurnAgain) {
+     *     // The save was successful.
+     *   }, function(error) {
+     *     // The save failed.  Error is an instance of Parse.Error.
+     *   });</pre>
+     *
+     * @param {Object} options A Backbone-style callback object.
+     * Valid options are:<ul>
+     *   <li>wait: Set to true to wait for the server to confirm a successful
+     *   save before modifying the attributes on the object.
+     *   <li>silent: Set to true to avoid firing the `set` event.
+     *   <li>success: A Backbone-style success callback.
+     *   <li>error: An Backbone-style error callback.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     * @return {Parse.Promise} A promise that is fulfilled when the save
+     *     completes.
+     * @see Parse.Error
+     */
+    save: function(arg1, arg2, arg3) {
+      var i, attrs, current, options, saved;
+      if (_.isObject(arg1) || Parse._isNullOrUndefined(arg1)) {
+        attrs = arg1;
+        options = arg2;
+      } else {
+        attrs = {};
+        attrs[arg1] = arg2;
+        options = arg3;
+      }
+
+      // Make save({ success: function() {} }) work.
+      if (!options && attrs) {
+        var extra_keys = _.reject(attrs, function(value, key) {
+          return _.include(["success", "error", "wait"], key);
+        });
+        if (extra_keys.length === 0) {
+          var all_functions = true;
+          if (_.has(attrs, "success") && !_.isFunction(attrs.success)) {
+            all_functions = false;
+          }
+          if (_.has(attrs, "error") && !_.isFunction(attrs.error)) {
+            all_functions = false;
+          }
+          if (all_functions) {
+            // This attrs object looks like it's really an options object,
+            // and there's no other options object, so let's just use it.
+            return this.save(null, attrs);
+          }
+        }
+      }
+
+      options = _.clone(options) || {};
+      if (options.wait) {
+        current = _.clone(this.attributes);
+      }
+
+      var setOptions = _.clone(options) || {};
+      if (setOptions.wait) {
+        setOptions.silent = true;
+      }
+      var setError;
+      setOptions.error = function(model, error) {
+        setError = error;
+      };
+      if (attrs && !this.set(attrs, setOptions)) {
+        return Parse.Promise.error(setError)._thenRunCallbacks(options, this);
+      }
+
+      var model = this;
+
+      // If there is any unsaved child, save it first.
+      model._refreshCache();
+
+      
+
+      var unsavedChildren = [];
+      var unsavedFiles = [];
+      Parse.Object._findUnsavedChildren(model.attributes,
+                                        unsavedChildren,
+                                        unsavedFiles);
+      if (unsavedChildren.length + unsavedFiles.length > 0) {
+        return Parse.Object._deepSaveAsync(this.attributes, {
+          useMasterKey: options.useMasterKey
+        }).then(function() {
+          return model.save(null, options);
+        }, function(error) {
+          return Parse.Promise.error(error)._thenRunCallbacks(options, model);
+        });
+      }
+
+      this._startSave();
+      this._saving = (this._saving || 0) + 1;
+
+      this._allPreviousSaves = this._allPreviousSaves || Parse.Promise.as();
+      this._allPreviousSaves = this._allPreviousSaves._continueWith(function() {
+        var method = model.id ? 'PUT' : 'POST';
+
+        var json = model._getSaveJSON();
+
+        var route = "classes";
+        var className = model.className;
+        if (model.className === "_User" && !model.id) {
+          // Special-case user sign-up.
+          route = "users";
+          className = null;
+        }
+        var request = Parse._request({
+          route: route,
+          className: className,
+          objectId: model.id,
+          method: method,
+          useMasterKey: options.useMasterKey,
+          data: json
+        });
+
+        request = request.then(function(resp, status, xhr) {
+          var serverAttrs = model.parse(resp, status, xhr);
+          if (options.wait) {
+            serverAttrs = _.extend(attrs || {}, serverAttrs);
+          }
+          model._finishSave(serverAttrs);
+          if (options.wait) {
+            model.set(current, setOptions);
+          }
+          return model;
+
+        }, function(error) {
+          model._cancelSave();
+          return Parse.Promise.error(error);
+
+        })._thenRunCallbacks(options, model);
+
+        return request;
+      });
+      return this._allPreviousSaves;
+    },
+
+    /**
+     * Destroy this model on the server if it was already persisted.
+     * Optimistically removes the model from its collection, if it has one.
+     * If `wait: true` is passed, waits for the server to respond
+     * before removal.
+     *
+     * @param {Object} options A Backbone-style callback object.
+     * Valid options are:<ul>
+     *   <li>wait: Set to true to wait for the server to confirm successful
+     *   deletion of the object before triggering the `destroy` event.
+     *   <li>success: A Backbone-style success callback
+     *   <li>error: An Backbone-style error callback.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     * @return {Parse.Promise} A promise that is fulfilled when the destroy
+     *     completes.
+     */
+    destroy: function(options) {
+      options = options || {};
+      var model = this;
+
+      var triggerDestroy = function() {
+        model.trigger('destroy', model, model.collection, options);
+      };
+
+      if (!this.id) {
+        return triggerDestroy();
+      }
+
+      if (!options.wait) {
+        triggerDestroy();
+      }
+
+      var request = Parse._request({
+        route: "classes",
+        className: this.className,
+        objectId: this.id,
+        method: 'DELETE',
+        useMasterKey: options.useMasterKey
+      });
+      return request.then(function() {
+        if (options.wait) {
+          triggerDestroy();
+        }
+        return model;
+      })._thenRunCallbacks(options, this);
+    },
+
+    /**
+     * Converts a response into the hash of attributes to be set on the model.
+     * @ignore
+     */
+    parse: function(resp, status, xhr) {
+      var output = _.clone(resp);
+      _(["createdAt", "updatedAt"]).each(function(key) {
+        if (output[key]) {
+          output[key] = Parse._parseDate(output[key]);
+        }
+      });
+      if (!output.updatedAt) {
+        output.updatedAt = output.createdAt;
+      }
+      if (status) {
+        this._existed = (status !== 201);
+      }
+      return output;
+    },
+
+    /**
+     * Creates a new model with identical attributes to this one.
+     * @return {Parse.Object}
+     */
+    clone: function() {
+      return new this.constructor(this.attributes);
+    },
+
+    /**
+     * Returns true if this object has never been saved to Parse.
+     * @return {Boolean}
+     */
+    isNew: function() {
+      return !this.id;
+    },
+
+    /**
+     * Call this method to manually fire a `"change"` event for this model and
+     * a `"change:attribute"` event for each changed attribute.
+     * Calling this will cause all objects observing the model to update.
+     */
+    change: function(options) {
+      options = options || {};
+      var changing = this._changing;
+      this._changing = true;
+
+      // Silent changes become pending changes.
+      var self = this;
+      Parse._objectEach(this._silent, function(attr) {
+        self._pending[attr] = true;
+      });
+
+      // Silent changes are triggered.
+      var changes = _.extend({}, options.changes, this._silent);
+      this._silent = {};
+      Parse._objectEach(changes, function(unused_value, attr) {
+        self.trigger('change:' + attr, self, self.get(attr), options);
+      });
+      if (changing) {
+        return this;
+      }
+
+      // This is to get around lint not letting us make a function in a loop.
+      var deleteChanged = function(value, attr) {
+        if (!self._pending[attr] && !self._silent[attr]) {
+          delete self.changed[attr];
+        }
+      };
+
+      // Continue firing `"change"` events while there are pending changes.
+      while (!_.isEmpty(this._pending)) {
+        this._pending = {};
+        this.trigger('change', this, options);
+        // Pending and silent changes still remain.
+        Parse._objectEach(this.changed, deleteChanged);
+        self._previousAttributes = _.clone(this.attributes);
+      }
+
+      this._changing = false;
+      return this;
+    },
+
+    /**
+     * Returns true if this object was created by the Parse server when the
+     * object might have already been there (e.g. in the case of a Facebook
+     * login)
+     */
+    existed: function() {
+      return this._existed;
+    },
+
+    /**
+     * Determine if the model has changed since the last <code>"change"</code>
+     * event.  If you specify an attribute name, determine if that attribute
+     * has changed.
+     * @param {String} attr Optional attribute name
+     * @return {Boolean}
+     */
+    hasChanged: function(attr) {
+      if (!arguments.length) {
+        return !_.isEmpty(this.changed);
+      }
+      return this.changed && _.has(this.changed, attr);
+    },
+
+    /**
+     * Returns an object containing all the attributes that have changed, or
+     * false if there are no changed attributes. Useful for determining what
+     * parts of a view need to be updated and/or what attributes need to be
+     * persisted to the server. Unset attributes will be set to undefined.
+     * You can also pass an attributes object to diff against the model,
+     * determining if there *would be* a change.
+     */
+    changedAttributes: function(diff) {
+      if (!diff) {
+        return this.hasChanged() ? _.clone(this.changed) : false;
+      }
+      var changed = {};
+      var old = this._previousAttributes;
+      Parse._objectEach(diff, function(diffVal, attr) {
+        if (!_.isEqual(old[attr], diffVal)) {
+          changed[attr] = diffVal;
+        }
+      });
+      return changed;
+    },
+
+    /**
+     * Gets the previous value of an attribute, recorded at the time the last
+     * <code>"change"</code> event was fired.
+     * @param {String} attr Name of the attribute to get.
+     */
+    previous: function(attr) {
+      if (!arguments.length || !this._previousAttributes) {
+        return null;
+      }
+      return this._previousAttributes[attr];
+    },
+
+    /**
+     * Gets all of the attributes of the model at the time of the previous
+     * <code>"change"</code> event.
+     * @return {Object}
+     */
+    previousAttributes: function() {
+      return _.clone(this._previousAttributes);
+    },
+
+    /**
+     * Checks if the model is currently in a valid state. It's only possible to
+     * get into an *invalid* state if you're using silent changes.
+     * @return {Boolean}
+     */
+    isValid: function() {
+      return !this.validate(this.attributes);
+    },
+
+    /**
+     * You should not call this function directly unless you subclass
+     * <code>Parse.Object</code>, in which case you can override this method
+     * to provide additional validation on <code>set</code> and
+     * <code>save</code>.  Your implementation should return
+     *
+     * @param {Object} attrs The current data to validate.
+     * @param {Object} options A Backbone-like options object.
+     * @return {} False if the data is valid.  An error object otherwise.
+     * @see Parse.Object#set
+     */
+    validate: function(attrs, options) {
+      if (_.has(attrs, "ACL") && !(attrs.ACL instanceof Parse.ACL)) {
+        return new Parse.Error(Parse.Error.OTHER_CAUSE,
+                               "ACL must be a Parse.ACL.");
+      }
+      var correct = true;
+      Parse._objectEach(attrs, function(unused_value, key) {
+        if (!(/^[A-Za-z][0-9A-Za-z_]*$/).test(key)) {
+          correct = false;
+        }
+      });
+      if (!correct) {
+        return new Parse.Error(Parse.Error.INVALID_KEY_NAME);
+      }
+      return false;
+    },
+
+    /**
+     * Run validation against a set of incoming attributes, returning `true`
+     * if all is well. If a specific `error` callback has been passed,
+     * call that instead of firing the general `"error"` event.
+     */
+    _validate: function(attrs, options) {
+      if (options.silent || !this.validate) {
+        return true;
+      }
+      attrs = _.extend({}, this.attributes, attrs);
+      var error = this.validate(attrs, options);
+      if (!error) {
+        return true;
+      }
+      if (options && options.error) {
+        options.error(this, error, options);
+      } else {
+        this.trigger('error', this, error, options);
+      }
+      return false;
+    },
+
+    /**
+     * Returns the ACL for this object.
+     * @returns {Parse.ACL} An instance of Parse.ACL.
+     * @see Parse.Object#get
+     */
+    getACL: function() {
+      return this.get("ACL");
+    },
+
+    /**
+     * Sets the ACL to be used for this object.
+     * @param {Parse.ACL} acl An instance of Parse.ACL.
+     * @param {Object} options Optional Backbone-like options object to be
+     *     passed in to set.
+     * @return {Boolean} Whether the set passed validation.
+     * @see Parse.Object#set
+     */
+    setACL: function(acl, options) {
+      return this.set("ACL", acl, options);
+    }
+
+  });
+
+  /**
+   * Returns the appropriate subclass for making new instances of the given
+   * className string.
+   */
+  Parse.Object._getSubclass = function(className) {
+    if (!_.isString(className)) {
+      throw "Parse.Object._getSubclass requires a string argument.";
+    }
+    var ObjectClass = Parse.Object._classMap[className];
+    if (!ObjectClass) {
+      ObjectClass = Parse.Object.extend(className);
+      Parse.Object._classMap[className] = ObjectClass;
+    }
+    return ObjectClass;
+  };
+
+  /**
+   * Creates an instance of a subclass of Parse.Object for the given classname.
+   */
+  Parse.Object._create = function(className, attributes, options) {
+    var ObjectClass = Parse.Object._getSubclass(className);
+    return new ObjectClass(attributes, options);
+  };
+
+  /**
+   * Returns a list of object ids given a list of objects.
+   */
+  Parse.Object._toObjectIdArray = function(list, omitObjectsWithData) {
+    if (list.length === 0) {
+      return Parse.Promise.as(list);
+    }
+
+    var error;
+    var className = list[0].className;
+    var objectIds = [];
+    for (var i = 0; i < list.length; i++) {
+      var object = list[i];
+      if (className !== object.className) {
+        error = new Parse.Error(Parse.Error.INVALID_CLASS_NAME,
+                                "All objects should be of the same class");
+        return Parse.Promise.error(error);
+      } else if (!object.id) {
+        error = new Parse.Error(Parse.Error.MISSING_OBJECT_ID,
+                                "All objects must have an ID");
+        return Parse.Promise.error(error);
+      } else if (omitObjectsWithData && object._hasData) {
+        continue;
+      }
+      objectIds.push(object.id);
+    }
+
+    return Parse.Promise.as(objectIds);
+  };
+
+  /**
+   * Updates a list of objects with fetched results.
+   */
+  Parse.Object._updateWithFetchedResults = function(list, fetched, forceFetch) {
+    var fetchedObjectsById = {};
+    Parse._arrayEach(fetched, function(object, i) {
+      fetchedObjectsById[object.id] = object;
+    });
+
+    for (var i = 0; i < list.length; i++) {
+      var object = list[i];
+      var fetchedObject = fetchedObjectsById[object.id];
+      if (!fetchedObject && forceFetch) {
+        var error = new Parse.Error(Parse.Error.OBJECT_NOT_FOUND,
+                                "All objects must exist on the server");
+        return Parse.Promise.error(error);
+      }
+
+      object._mergeFromObject(fetchedObject);
+    }
+
+    return Parse.Promise.as(list);
+  };
+
+  /**
+   * Fetches the objects given in list.  The forceFetch option will fetch all
+   * objects if true and ignore objects with data if false.
+   */
+  Parse.Object._fetchAll = function(list, forceFetch) {
+    if (list.length === 0) {
+      return Parse.Promise.as(list);
+    }
+
+    var omitObjectsWithData = !forceFetch;
+    return Parse.Object._toObjectIdArray(
+      list,
+      omitObjectsWithData
+    ).then(function(objectIds) {
+      var className = list[0].className;
+      var query = new Parse.Query(className);
+      query.containedIn("objectId", objectIds);
+      query.limit = objectIds.length;
+      return query.find();
+    }).then(function(results) {
+      return Parse.Object._updateWithFetchedResults(
+        list,
+        results,
+        forceFetch
+      );
+    });
+  };
+
+  // Set up a map of className to class so that we can create new instances of
+  // Parse Objects from JSON automatically.
+  Parse.Object._classMap = {};
+
+  Parse.Object._extend = Parse._extend;
+
+  /**
+   * Creates a new subclass of Parse.Object for the given Parse class name.
+   *
+   * <p>Every extension of a Parse class will inherit from the most recent
+   * previous extension of that class. When a Parse.Object is automatically
+   * created by parsing JSON, it will use the most recent extension of that
+   * class.</p>
+   *
+   * <p>You should call either:<pre>
+   *     var MyClass = Parse.Object.extend("MyClass", {
+   *         <i>Instance methods</i>,
+   *         initialize: function(attrs, options) {
+   *             this.someInstanceProperty = [],
+   *             <i>Other instance properties</i>
+   *         }
+   *     }, {
+   *         <i>Class properties</i>
+   *     });</pre>
+   * or, for Backbone compatibility:<pre>
+   *     var MyClass = Parse.Object.extend({
+   *         className: "MyClass",
+   *         <i>Instance methods</i>,
+   *         initialize: function(attrs, options) {
+   *             this.someInstanceProperty = [],
+   *             <i>Other instance properties</i>
+   *         }
+   *     }, {
+   *         <i>Class properties</i>
+   *     });</pre></p>
+   *
+   * @param {String} className The name of the Parse class backing this model.
+   * @param {Object} protoProps Instance properties to add to instances of the
+   *     class returned from this method.
+   * @param {Object} classProps Class properties to add the class returned from
+   *     this method.
+   * @return {Class} A new subclass of Parse.Object.
+   */
+  Parse.Object.extend = function(className, protoProps, classProps) {
+    // Handle the case with only two args.
+    if (!_.isString(className)) {
+      if (className && _.has(className, "className")) {
+        return Parse.Object.extend(className.className, className, protoProps);
+      } else {
+        throw new Error(
+            "Parse.Object.extend's first argument should be the className.");
+      }
+    }
+
+    // If someone tries to subclass "User", coerce it to the right type.
+    if (className === "User" && Parse.User._performUserRewrite) {
+      className = "_User";
+    }
+    protoProps = protoProps || {};
+    protoProps.className = className;
+
+    var NewClassObject = null;
+    if (_.has(Parse.Object._classMap, className)) {
+      var OldClassObject = Parse.Object._classMap[className];
+      // This new subclass has been told to extend both from "this" and from
+      // OldClassObject. This is multiple inheritance, which isn't supported.
+      // For now, let's just pick one.
+      NewClassObject = OldClassObject._extend(protoProps, classProps);
+    } else {
+      NewClassObject = this._extend(protoProps, classProps);
+    }
+    // Extending a subclass should reuse the classname automatically.
+    NewClassObject.extend = function(arg0) {
+      if (_.isString(arg0) || (arg0 && _.has(arg0, "className"))) {
+        return Parse.Object.extend.apply(NewClassObject, arguments);
+      }
+      var newArguments = [className].concat(Parse._.toArray(arguments));
+      return Parse.Object.extend.apply(NewClassObject, newArguments);
+    };
+
+    /**
+     * Creates a reference to a subclass of Parse.Object with the given id. This
+     * does not exist on Parse.Object, only on subclasses.
+     *
+     * <p>A shortcut for: <pre>
+     *  var Foo = Parse.Object.extend("Foo");
+     *  var pointerToFoo = new Foo();
+     *  pointerToFoo.id = "myObjectId";
+     * </pre>
+     *
+     * @name createWithoutData
+     * @param {String} id The ID of the object to create a reference to.
+     * @return {Parse.Object} A Parse.Object reference.
+     * @function
+     * @memberOf Parse.Object
+     */
+    NewClassObject.createWithoutData = function(id) {
+      var obj = new NewClassObject();
+      obj.id = id;
+      return obj;
+    };
+
+    Parse.Object._classMap[className] = NewClassObject;
+    return NewClassObject;
+  };
+
+  Parse.Object._findUnsavedChildren = function(object, children, files) {
+    Parse._traverse(object, function(object) {
+      if (object instanceof Parse.Object) {
+        object._refreshCache();
+        if (object.dirty()) {
+          children.push(object);
+        }
+        return;
+      }
+
+      if (object instanceof Parse.File) {
+        if (!object.url()) {
+          files.push(object);
+        }
+        return;
+      }
+    });
+  };
+
+  Parse.Object._canBeSerializedAsValue = function(object) {
+    
+    if (object instanceof Parse.Object) {
+      return !!object.id;
+    }
+    if (object instanceof Parse.File) {
+      // Don't recurse indefinitely into files.
+      return true;
+    }
+
+    var canBeSerializedAsValue = true;
+
+    if (_.isArray(object)) {
+      Parse._arrayEach(object, function(child) {
+        if (!Parse.Object._canBeSerializedAsValue(child)) {
+          canBeSerializedAsValue = false;
+        }
+      });
+    } else if (_.isObject(object)) {
+      Parse._objectEach(object, function(child) {
+        if (!Parse.Object._canBeSerializedAsValue(child)) {
+          canBeSerializedAsValue = false;
+        }
+      });
+    }
+    return canBeSerializedAsValue;
+  };
+
+  /**
+   * @param {Object} object The root object.
+   * @param {Object} options: The only valid option is useMasterKey.
+   */
+  Parse.Object._deepSaveAsync = function(object, options) {
+    var unsavedChildren = [];
+    var unsavedFiles = [];
+    Parse.Object._findUnsavedChildren(object, unsavedChildren, unsavedFiles);
+
+    var promise = Parse.Promise.as();
+    _.each(unsavedFiles, function(file) {
+      promise = promise.then(function() {
+        return file.save(options);
+      });
+    });
+
+    var objects = _.uniq(unsavedChildren);
+    var remaining = _.uniq(objects);
+
+    return promise.then(function() {
+      return Parse.Promise._continueWhile(function() {
+        return remaining.length > 0;
+      }, function() {
+
+        // Gather up all the objects that can be saved in this batch.
+        var batch = [];
+        var newRemaining = [];
+        Parse._arrayEach(remaining, function(object) {
+          // Limit batches to 20 objects.
+          if (batch.length > 20) {
+            newRemaining.push(object);
+            return;
+          }
+
+          if (object._canBeSerialized()) {
+            batch.push(object);
+          } else {
+            newRemaining.push(object);
+          }
+        });
+        remaining = newRemaining;
+
+        // If we can't save any objects, there must be a circular reference.
+        if (batch.length === 0) {
+          return Parse.Promise.error(
+            new Parse.Error(Parse.Error.OTHER_CAUSE,
+                            "Tried to save a batch with a cycle."));
+        }
+
+        // Reserve a spot in every object's save queue.
+        var readyToStart = Parse.Promise.when(_.map(batch, function(object) {
+          return object._allPreviousSaves || Parse.Promise.as();
+        }));
+        var batchFinished = new Parse.Promise();
+        Parse._arrayEach(batch, function(object) {
+          object._allPreviousSaves = batchFinished;
+        });
+
+        // Save a single batch, whether previous saves succeeded or failed.
+        return readyToStart._continueWith(function() {
+          return Parse._request({
+            route: "batch",
+            method: "POST",
+            useMasterKey: options.useMasterKey,
+            data: {
+              requests: _.map(batch, function(object) {
+                var json = object._getSaveJSON();
+                var method = "POST";
+
+                var path = "/1/classes/" + object.className;
+                if (object.id) {
+                  path = path + "/" + object.id;
+                  method = "PUT";
+                }
+
+                object._startSave();
+
+                return {
+                  method: method,
+                  path: path,
+                  body: json
+                };
+              })
+            }
+          }).then(function(response, status, xhr) {
+            var error;
+            Parse._arrayEach(batch, function(object, i) {
+              if (response[i].success) {
+                object._finishSave(
+                  object.parse(response[i].success, status, xhr));
+              } else {
+                error = error || response[i].error;
+                object._cancelSave();
+              }
+            });
+            if (error) {
+              return Parse.Promise.error(
+                new Parse.Error(error.code, error.error));
+            }
+
+          }).then(function(results) {
+            batchFinished.resolve(results);
+            return results;
+          }, function(error) {
+            batchFinished.reject(error);
+            return Parse.Promise.error(error);
+          });
+        });
+      });
+    }).then(function() {
+      return object;
+    });
+  };
+
+}(this));
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Represents a Role on the Parse server. Roles represent groupings of
+   * Users for the purposes of granting permissions (e.g. specifying an ACL
+   * for an Object). Roles are specified by their sets of child users and
+   * child roles, all of which are granted any permissions that the parent
+   * role has.
+   *
+   * <p>Roles must have a name (which cannot be changed after creation of the
+   * role), and must specify an ACL.</p>
+   * @class
+   * A Parse.Role is a local representation of a role persisted to the Parse
+   * cloud.
+   */
+  Parse.Role = Parse.Object.extend("_Role", /** @lends Parse.Role.prototype */ {
+    // Instance Methods
+    
+    /**
+     * Constructs a new ParseRole with the given name and ACL.
+     * 
+     * @param {String} name The name of the Role to create.
+     * @param {Parse.ACL} acl The ACL for this role. Roles must have an ACL.
+     */
+    constructor: function(name, acl) {
+      if (_.isString(name) && (acl instanceof Parse.ACL)) {
+        Parse.Object.prototype.constructor.call(this, null, null);
+        this.setName(name);
+        this.setACL(acl);
+      } else {
+        Parse.Object.prototype.constructor.call(this, name, acl);
+      }
+    },
+    
+    /**
+     * Gets the name of the role.  You can alternatively call role.get("name")
+     * 
+     * @return {String} the name of the role.
+     */
+    getName: function() {
+      return this.get("name");
+    },
+    
+    /**
+     * Sets the name for a role. This value must be set before the role has
+     * been saved to the server, and cannot be set once the role has been
+     * saved.
+     * 
+     * <p>
+     *   A role's name can only contain alphanumeric characters, _, -, and
+     *   spaces.
+     * </p>
+     *
+     * <p>This is equivalent to calling role.set("name", name)</p>
+     * 
+     * @param {String} name The name of the role.
+     * @param {Object} options Standard options object with success and error
+     *     callbacks.
+     */
+    setName: function(name, options) {
+      return this.set("name", name, options);
+    },
+    
+    /**
+     * Gets the Parse.Relation for the Parse.Users that are direct
+     * children of this role. These users are granted any privileges that this
+     * role has been granted (e.g. read or write access through ACLs). You can
+     * add or remove users from the role through this relation.
+     * 
+     * <p>This is equivalent to calling role.relation("users")</p>
+     * 
+     * @return {Parse.Relation} the relation for the users belonging to this
+     *     role.
+     */
+    getUsers: function() {
+      return this.relation("users");
+    },
+    
+    /**
+     * Gets the Parse.Relation for the Parse.Roles that are direct
+     * children of this role. These roles' users are granted any privileges that
+     * this role has been granted (e.g. read or write access through ACLs). You
+     * can add or remove child roles from this role through this relation.
+     * 
+     * <p>This is equivalent to calling role.relation("roles")</p>
+     * 
+     * @return {Parse.Relation} the relation for the roles belonging to this
+     *     role.
+     */
+    getRoles: function() {
+      return this.relation("roles");
+    },
+    
+    /**
+     * @ignore
+     */
+    validate: function(attrs, options) {
+      if ("name" in attrs && attrs.name !== this.getName()) {
+        var newName = attrs.name;
+        if (this.id && this.id !== attrs.objectId) {
+          // Check to see if the objectId being set matches this.id.
+          // This happens during a fetch -- the id is set before calling fetch.
+          // Let the name be set in this case.
+          return new Parse.Error(Parse.Error.OTHER_CAUSE,
+              "A role's name can only be set before it has been saved.");
+        }
+        if (!_.isString(newName)) {
+          return new Parse.Error(Parse.Error.OTHER_CAUSE,
+              "A role's name must be a String.");
+        }
+        if (!(/^[0-9a-zA-Z\-_ ]+$/).test(newName)) {
+          return new Parse.Error(Parse.Error.OTHER_CAUSE,
+              "A role's name can only contain alphanumeric characters, _," +
+              " -, and spaces.");
+        }
+      }
+      if (Parse.Object.prototype.validate) {
+        return Parse.Object.prototype.validate.call(this, attrs, options);
+      }
+      return false;
+    }
+  });
+}(this));
+
+
+/*global _: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Creates a new instance with the given models and options.  Typically, you
+   * will not call this method directly, but will instead make a subclass using
+   * <code>Parse.Collection.extend</code>.
+   *
+   * @param {Array} models An array of instances of <code>Parse.Object</code>.
+   *
+   * @param {Object} options An optional object with Backbone-style options.
+   * Valid options are:<ul>
+   *   <li>model: The Parse.Object subclass that this collection contains.
+   *   <li>query: An instance of Parse.Query to use when fetching items.
+   *   <li>comparator: A string property name or function to sort by.
+   * </ul>
+   *
+   * @see Parse.Collection.extend
+   *
+   * @class
+   *
+   * <p>Provides a standard collection class for our sets of models, ordered
+   * or unordered.  For more information, see the
+   * <a href="http://documentcloud.github.com/backbone/#Collection">Backbone
+   * documentation</a>.</p>
+   */
+  Parse.Collection = function(models, options) {
+    options = options || {};
+    if (options.comparator) {
+      this.comparator = options.comparator;
+    }
+    if (options.model) {
+      this.model = options.model;
+    }
+    if (options.query) {
+      this.query = options.query;
+    }
+    this._reset();
+    this.initialize.apply(this, arguments);
+    if (models) {
+      this.reset(models, {silent: true, parse: options.parse});
+    }
+  };
+
+  // Define the Collection's inheritable methods.
+  _.extend(Parse.Collection.prototype, Parse.Events,
+      /** @lends Parse.Collection.prototype */ {
+
+    // The default model for a collection is just a Parse.Object.
+    // This should be overridden in most cases.
+    
+    model: Parse.Object,
+
+    /**
+     * Initialize is an empty function by default. Override it with your own
+     * initialization logic.
+     */
+    initialize: function(){},
+
+    /**
+     * The JSON representation of a Collection is an array of the
+     * models' attributes.
+     */
+    toJSON: function() {
+      return this.map(function(model){ return model.toJSON(); });
+    },
+
+    /**
+     * Add a model, or list of models to the set. Pass **silent** to avoid
+     * firing the `add` event for every new model.
+     *
+     * @param {Array} models An array of instances of <code>Parse.Object</code>.
+     *
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are:<ul>
+     *   <li>at: The index at which to add the models.
+     *   <li>silent: Set to true to avoid firing the `add` event for every new
+     *   model.
+     * </ul>
+     */
+    add: function(models, options) {
+      var i, index, length, model, cid, id, cids = {}, ids = {};
+      options = options || {};
+      models = _.isArray(models) ? models.slice() : [models];
+
+      // Begin by turning bare objects into model references, and preventing
+      // invalid models or duplicate models from being added.
+      for (i = 0, length = models.length; i < length; i++) {
+        models[i] = this._prepareModel(models[i], options);
+        model = models[i];
+        if (!model) {
+          throw new Error("Can't add an invalid model to a collection");
+        }
+        cid = model.cid;
+        if (cids[cid] || this._byCid[cid]) {
+          throw new Error("Duplicate cid: can't add the same model " +
+                          "to a collection twice");
+        }
+        id = model.id;
+        if (!Parse._isNullOrUndefined(id) && (ids[id] || this._byId[id])) {
+          throw new Error("Duplicate id: can't add the same model " +
+                          "to a collection twice");
+        }
+        ids[id] = model;
+        cids[cid] = model;
+      }
+
+      // Listen to added models' events, and index models for lookup by
+      // `id` and by `cid`.
+      for (i = 0; i < length; i++) {
+        (model = models[i]).on('all', this._onModelEvent, this);
+        this._byCid[model.cid] = model;
+        if (model.id) {
+          this._byId[model.id] = model;
+        }
+      }
+
+      // Insert models into the collection, re-sorting if needed, and triggering
+      // `add` events unless silenced.
+      this.length += length;
+      index = Parse._isNullOrUndefined(options.at) ? 
+          this.models.length : options.at;
+      this.models.splice.apply(this.models, [index, 0].concat(models));
+      if (this.comparator) {
+        this.sort({silent: true});
+      }
+      if (options.silent) {
+        return this;
+      }
+      for (i = 0, length = this.models.length; i < length; i++) {
+        model = this.models[i];
+        if (cids[model.cid]) {
+          options.index = i;
+          model.trigger('add', model, this, options);
+        }
+      }
+      return this;
+    },
+
+    /**
+     * Remove a model, or a list of models from the set. Pass silent to avoid
+     * firing the <code>remove</code> event for every model removed.
+     *
+     * @param {Array} models The model or list of models to remove from the
+     *   collection.
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are: <ul>
+     *   <li>silent: Set to true to avoid firing the `remove` event.
+     * </ul>
+     */
+    remove: function(models, options) {
+      var i, l, index, model;
+      options = options || {};
+      models = _.isArray(models) ? models.slice() : [models];
+      for (i = 0, l = models.length; i < l; i++) {
+        model = this.getByCid(models[i]) || this.get(models[i]);
+        if (!model) {
+          continue;
+        }
+        delete this._byId[model.id];
+        delete this._byCid[model.cid];
+        index = this.indexOf(model);
+        this.models.splice(index, 1);
+        this.length--;
+        if (!options.silent) {
+          options.index = index;
+          model.trigger('remove', model, this, options);
+        }
+        this._removeReference(model);
+      }
+      return this;
+    },
+
+    /**
+     * Gets a model from the set by id.
+     * @param {String} id The Parse objectId identifying the Parse.Object to
+     * fetch from this collection.
+     */
+    get: function(id) {
+      return id && this._byId[id.id || id];
+    },
+
+    /**
+     * Gets a model from the set by client id.
+     * @param {} cid The Backbone collection id identifying the Parse.Object to
+     * fetch from this collection.
+     */
+    getByCid: function(cid) {
+      return cid && this._byCid[cid.cid || cid];
+    },
+
+    /**
+     * Gets the model at the given index.
+     *
+     * @param {Number} index The index of the model to return.
+     */
+    at: function(index) {
+      return this.models[index];
+    },
+
+    /**
+     * Forces the collection to re-sort itself. You don't need to call this
+     * under normal circumstances, as the set will maintain sort order as each
+     * item is added.
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are: <ul>
+     *   <li>silent: Set to true to avoid firing the `reset` event.
+     * </ul>
+     */
+    sort: function(options) {
+      options = options || {};
+      if (!this.comparator) {
+        throw new Error('Cannot sort a set without a comparator');
+      }
+      var boundComparator = _.bind(this.comparator, this);
+      if (this.comparator.length === 1) {
+        this.models = this.sortBy(boundComparator);
+      } else {
+        this.models.sort(boundComparator);
+      }
+      if (!options.silent) {
+        this.trigger('reset', this, options);
+      }
+      return this;
+    },
+
+    /**
+     * Plucks an attribute from each model in the collection.
+     * @param {String} attr The attribute to return from each model in the
+     * collection.
+     */
+    pluck: function(attr) {
+      return _.map(this.models, function(model){ return model.get(attr); });
+    },
+
+    /**
+     * When you have more items than you want to add or remove individually,
+     * you can reset the entire set with a new list of models, without firing
+     * any `add` or `remove` events. Fires `reset` when finished.
+     *
+     * @param {Array} models The model or list of models to remove from the
+     *   collection.
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are: <ul>
+     *   <li>silent: Set to true to avoid firing the `reset` event.
+     * </ul>
+     */
+    reset: function(models, options) {
+      var self = this;
+      models = models || [];
+      options = options || {};
+      Parse._arrayEach(this.models, function(model) {
+        self._removeReference(model);
+      });
+      this._reset();
+      this.add(models, {silent: true, parse: options.parse});
+      if (!options.silent) {
+        this.trigger('reset', this, options);
+      }
+      return this;
+    },
+
+    /**
+     * Fetches the default set of models for this collection, resetting the
+     * collection when they arrive. If `add: true` is passed, appends the
+     * models to the collection instead of resetting.
+     *
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are:<ul>
+     *   <li>silent: Set to true to avoid firing `add` or `reset` events for
+     *   models fetched by this fetch.
+     *   <li>success: A Backbone-style success callback.
+     *   <li>error: An Backbone-style error callback.
+     *   <li>useMasterKey: In Cloud Code and Node only, uses the Master Key for
+     *       this request.
+     * </ul>
+     */
+    fetch: function(options) {
+      options = _.clone(options) || {};
+      if (options.parse === undefined) {
+        options.parse = true;
+      }
+      var collection = this;
+      var query = this.query || new Parse.Query(this.model);
+      return query.find({
+        useMasterKey: options.useMasterKey
+      }).then(function(results) {
+        if (options.add) {
+          collection.add(results, options);
+        } else {
+          collection.reset(results, options);
+        }
+        return collection;
+      })._thenRunCallbacks(options, this);
+    },
+
+    /**
+     * Creates a new instance of a model in this collection. Add the model to
+     * the collection immediately, unless `wait: true` is passed, in which case
+     * we wait for the server to agree.
+     *
+     * @param {Parse.Object} model The new model to create and add to the
+     *   collection.
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are:<ul>
+     *   <li>wait: Set to true to wait for the server to confirm creation of the
+     *       model before adding it to the collection.
+     *   <li>silent: Set to true to avoid firing an `add` event.
+     *   <li>success: A Backbone-style success callback.
+     *   <li>error: An Backbone-style error callback.
+     *   <li>useMasterKey: In Cloud Code and Node only, uses the Master Key for
+     *       this request.
+     * </ul>
+     */
+    create: function(model, options) {
+      var coll = this;
+      options = options ? _.clone(options) : {};
+      model = this._prepareModel(model, options);
+      if (!model) {
+        return false;
+      }
+      if (!options.wait) {
+        coll.add(model, options);
+      }
+      var success = options.success;
+      options.success = function(nextModel, resp, xhr) {
+        if (options.wait) {
+          coll.add(nextModel, options);
+        }
+        if (success) {
+          success(nextModel, resp);
+        } else {
+          nextModel.trigger('sync', model, resp, options);
+        }
+      };
+      model.save(null, options);
+      return model;
+    },
+
+    /**
+     * Converts a response into a list of models to be added to the collection.
+     * The default implementation is just to pass it through.
+     * @ignore
+     */
+    parse: function(resp, xhr) {
+      return resp;
+    },
+
+    /**
+     * Proxy to _'s chain. Can't be proxied the same way the rest of the
+     * underscore methods are proxied because it relies on the underscore
+     * constructor.
+     */
+    chain: function() {
+      return _(this.models).chain();
+    },
+
+    /**
+     * Reset all internal state. Called when the collection is reset.
+     */
+    _reset: function(options) {
+      this.length = 0;
+      this.models = [];
+      this._byId  = {};
+      this._byCid = {};
+    },
+
+    /**
+     * Prepare a model or hash of attributes to be added to this collection.
+     */
+    _prepareModel: function(model, options) {
+      if (!(model instanceof Parse.Object)) {
+        var attrs = model;
+        options.collection = this;
+        model = new this.model(attrs, options);
+        if (!model._validate(model.attributes, options)) {
+          model = false;
+        }
+      } else if (!model.collection) {
+        model.collection = this;
+      }
+      return model;
+    },
+
+    /**
+     * Internal method to remove a model's ties to a collection.
+     */
+    _removeReference: function(model) {
+      if (this === model.collection) {
+        delete model.collection;
+      }
+      model.off('all', this._onModelEvent, this);
+    },
+
+    /**
+     * Internal method called every time a model in the set fires an event.
+     * Sets need to update their indexes when models change ids. All other
+     * events simply proxy through. "add" and "remove" events that originate
+     * in other collections are ignored.
+     */
+    _onModelEvent: function(ev, model, collection, options) {
+      if ((ev === 'add' || ev === 'remove') && collection !== this) {
+        return;
+      }
+      if (ev === 'destroy') {
+        this.remove(model, options);
+      }
+      if (model && ev === 'change:objectId') {
+        delete this._byId[model.previous("objectId")];
+        this._byId[model.id] = model;
+      }
+      this.trigger.apply(this, arguments);
+    }
+
+  });
+
+  // Underscore methods that we want to implement on the Collection.
+  var methods = ['forEach', 'each', 'map', 'reduce', 'reduceRight', 'find',
+    'detect', 'filter', 'select', 'reject', 'every', 'all', 'some', 'any',
+    'include', 'contains', 'invoke', 'max', 'min', 'sortBy', 'sortedIndex',
+    'toArray', 'size', 'first', 'initial', 'rest', 'last', 'without', 'indexOf',
+    'shuffle', 'lastIndexOf', 'isEmpty', 'groupBy'];
+
+  // Mix in each Underscore method as a proxy to `Collection#models`.
+  Parse._arrayEach(methods, function(method) {
+    Parse.Collection.prototype[method] = function() {
+      return _[method].apply(_, [this.models].concat(_.toArray(arguments)));
+    };
+  });
+
+  /**
+   * Creates a new subclass of <code>Parse.Collection</code>.  For example,<pre>
+   *   var MyCollection = Parse.Collection.extend({
+   *     // Instance properties
+   *
+   *     model: MyClass,
+   *     query: MyQuery,
+   *
+   *     getFirst: function() {
+   *       return this.at(0);
+   *     }
+   *   }, {
+   *     // Class properties
+   *
+   *     makeOne: function() {
+   *       return new MyCollection();
+   *     }
+   *   });
+   *
+   *   var collection = new MyCollection();
+   * </pre>
+   *
+   * @function
+   * @param {Object} instanceProps Instance properties for the collection.
+   * @param {Object} classProps Class properies for the collection.
+   * @return {Class} A new subclass of <code>Parse.Collection</code>.
+   */
+  Parse.Collection.extend = Parse._extend;
+
+}(this));
+
+/*global _: false, document: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Creating a Parse.View creates its initial element outside of the DOM,
+   * if an existing element is not provided...
+   * @class
+   *
+   * <p>A fork of Backbone.View, provided for your convenience.  If you use this
+   * class, you must also include jQuery, or another library that provides a
+   * jQuery-compatible $ function.  For more information, see the
+   * <a href="http://documentcloud.github.com/backbone/#View">Backbone
+   * documentation</a>.</p>
+   * <p><strong><em>Available in the client SDK only.</em></strong></p>
+   */
+  Parse.View = function(options) {
+    this.cid = _.uniqueId('view');
+    this._configure(options || {});
+    this._ensureElement();
+    this.initialize.apply(this, arguments);
+    this.delegateEvents();
+  };
+
+  // Cached regex to split keys for `delegate`.
+  var eventSplitter = /^(\S+)\s*(.*)$/;
+
+  // List of view options to be merged as properties.
+  
+  var viewOptions = ['model', 'collection', 'el', 'id', 'attributes',
+                     'className', 'tagName'];
+
+  // Set up all inheritable **Parse.View** properties and methods.
+  _.extend(Parse.View.prototype, Parse.Events,
+           /** @lends Parse.View.prototype */ {
+
+    // The default `tagName` of a View's element is `"div"`.
+    tagName: 'div',
+
+    /**
+     * jQuery delegate for element lookup, scoped to DOM elements within the
+     * current view. This should be prefered to global lookups where possible.
+     */
+    $: function(selector) {
+      return this.$el.find(selector);
+    },
+
+    /**
+     * Initialize is an empty function by default. Override it with your own
+     * initialization logic.
+     */
+    initialize: function(){},
+
+    /**
+     * The core function that your view should override, in order
+     * to populate its element (`this.el`), with the appropriate HTML. The
+     * convention is for **render** to always return `this`.
+     */
+    render: function() {
+      return this;
+    },
+
+    /**
+     * Remove this view from the DOM. Note that the view isn't present in the
+     * DOM by default, so calling this method may be a no-op.
+     */
+    remove: function() {
+      this.$el.remove();
+      return this;
+    },
+
+    /**
+     * For small amounts of DOM Elements, where a full-blown template isn't
+     * needed, use **make** to manufacture elements, one at a time.
+     * <pre>
+     *     var el = this.make('li', {'class': 'row'},
+     *                        this.model.escape('title'));</pre>
+     */
+    make: function(tagName, attributes, content) {
+      var el = document.createElement(tagName);
+      if (attributes) {
+        Parse.$(el).attr(attributes);
+      }
+      if (content) {
+        Parse.$(el).html(content);
+      }
+      return el;
+    },
+
+    /**
+     * Changes the view's element (`this.el` property), including event
+     * re-delegation.
+     */
+    setElement: function(element, delegate) {
+      this.$el = Parse.$(element);
+      this.el = this.$el[0];
+      if (delegate !== false) {
+        this.delegateEvents();
+      }
+      return this;
+    },
+
+    /**
+     * Set callbacks.  <code>this.events</code> is a hash of
+     * <pre>
+     * *{"event selector": "callback"}*
+     *
+     *     {
+     *       'mousedown .title':  'edit',
+     *       'click .button':     'save'
+     *       'click .open':       function(e) { ... }
+     *     }
+     * </pre>
+     * pairs. Callbacks will be bound to the view, with `this` set properly.
+     * Uses event delegation for efficiency.
+     * Omitting the selector binds the event to `this.el`.
+     * This only works for delegate-able events: not `focus`, `blur`, and
+     * not `change`, `submit`, and `reset` in Internet Explorer.
+     */
+    delegateEvents: function(events) {
+      events = events || Parse._getValue(this, 'events');
+      if (!events) {
+        return;
+      }
+      this.undelegateEvents();
+      var self = this;
+      Parse._objectEach(events, function(method, key) {
+        if (!_.isFunction(method)) {
+          method = self[events[key]];
+        }
+        if (!method) {
+          throw new Error('Event "' + events[key] + '" does not exist');
+        }
+        var match = key.match(eventSplitter);
+        var eventName = match[1], selector = match[2];
+        method = _.bind(method, self);
+        eventName += '.delegateEvents' + self.cid;
+        if (selector === '') {
+          self.$el.bind(eventName, method);
+        } else {
+          self.$el.delegate(selector, eventName, method);
+        }
+      });
+    },
+
+    /**
+     * Clears all callbacks previously bound to the view with `delegateEvents`.
+     * You usually don't need to use this, but may wish to if you have multiple
+     * Backbone views attached to the same DOM element.
+     */
+    undelegateEvents: function() {
+      this.$el.unbind('.delegateEvents' + this.cid);
+    },
+
+    /**
+     * Performs the initial configuration of a View with a set of options.
+     * Keys with special meaning *(model, collection, id, className)*, are
+     * attached directly to the view.
+     */
+    _configure: function(options) {
+      if (this.options) {
+        options = _.extend({}, this.options, options);
+      }
+      var self = this;
+      _.each(viewOptions, function(attr) {
+        if (options[attr]) {
+          self[attr] = options[attr];
+        }
+      });
+      this.options = options;
+    },
+
+    /**
+     * Ensure that the View has a DOM element to render into.
+     * If `this.el` is a string, pass it through `$()`, take the first
+     * matching element, and re-assign it to `el`. Otherwise, create
+     * an element from the `id`, `className` and `tagName` properties.
+     */
+    _ensureElement: function() {
+      if (!this.el) {
+        var attrs = Parse._getValue(this, 'attributes') || {};
+        if (this.id) {
+          attrs.id = this.id;
+        }
+        if (this.className) {
+          attrs['class'] = this.className;
+        }
+        this.setElement(this.make(this.tagName, attrs), false);
+      } else {
+        this.setElement(this.el, false);
+      }
+    }
+
+  });
+
+  /**
+   * @function
+   * @param {Object} instanceProps Instance properties for the view.
+   * @param {Object} classProps Class properies for the view.
+   * @return {Class} A new subclass of <code>Parse.View</code>.
+   */
+  Parse.View.extend = Parse._extend;
+
+}(this));
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * @class
+   *
+   * <p>A Parse.User object is a local representation of a user persisted to the
+   * Parse cloud. This class is a subclass of a Parse.Object, and retains the
+   * same functionality of a Parse.Object, but also extends it with various
+   * user specific methods, like authentication, signing up, and validation of
+   * uniqueness.</p>
+   */
+  Parse.User = Parse.Object.extend("_User", /** @lends Parse.User.prototype */ {
+    // Instance Variables
+    _isCurrentUser: false,
+
+
+    // Instance Methods
+    
+    /**
+     * Merges another object's attributes into this object.
+     */
+    _mergeFromObject: function(other) {
+      if (other.getSessionToken()) {
+        this._sessionToken = other.getSessionToken();      
+      }    
+      Parse.User.__super__._mergeFromObject.call(this, other);
+    },    
+
+    /**
+     * Internal method to handle special fields in a _User response.
+     */
+    _mergeMagicFields: function(attrs) {
+      if (attrs.sessionToken) {
+        this._sessionToken = attrs.sessionToken;
+        delete attrs.sessionToken;
+      }
+      Parse.User.__super__._mergeMagicFields.call(this, attrs);
+    },
+
+    /**
+     * Removes null values from authData (which exist temporarily for
+     * unlinking)
+     */
+    _cleanupAuthData: function() {
+      if (!this.isCurrent()) {
+        return;
+      }
+      var authData = this.get('authData');
+      if (!authData) {
+        return;
+      }
+      Parse._objectEach(this.get('authData'), function(value, key) {
+        if (!authData[key]) {
+          delete authData[key];
+        }
+      });
+    },
+
+    /**
+     * Synchronizes authData for all providers.
+     */
+    _synchronizeAllAuthData: function() {
+      var authData = this.get('authData');
+      if (!authData) {
+        return;
+      }
+
+      var self = this;
+      Parse._objectEach(this.get('authData'), function(value, key) {
+        self._synchronizeAuthData(key);
+      });
+    },
+
+    /**
+     * Synchronizes auth data for a provider (e.g. puts the access token in the
+     * right place to be used by the Facebook SDK).
+     */
+    _synchronizeAuthData: function(provider) {
+      if (!this.isCurrent()) {
+        return;
+      }
+      var authType;
+      if (_.isString(provider)) {
+        authType = provider;
+        provider = Parse.User._authProviders[authType];
+      } else {
+        authType = provider.getAuthType();
+      }
+      var authData = this.get('authData');
+      if (!authData || !provider) {
+        return;
+      }
+      var success = provider.restoreAuthentication(authData[authType]);
+      if (!success) {
+        this._unlinkFrom(provider);
+      }
+    },
+
+    _handleSaveResult: function(makeCurrent) {
+      // Clean up and synchronize the authData object, removing any unset values
+      if (makeCurrent) {
+        this._isCurrentUser = true;
+      }
+      this._cleanupAuthData();
+      this._synchronizeAllAuthData();
+      // Don't keep the password around.
+      delete this._serverData.password;
+      this._rebuildEstimatedDataForKey("password");
+      this._refreshCache();
+      if (makeCurrent || this.isCurrent()) {
+        Parse.User._saveCurrentUser(this);
+      }
+    },
+
+    /**
+     * Unlike in the Android/iOS SDKs, logInWith is unnecessary, since you can
+     * call linkWith on the user (even if it doesn't exist yet on the server).
+     */
+    _linkWith: function(provider, options) {
+      var authType;
+      if (_.isString(provider)) {
+        authType = provider;
+        provider = Parse.User._authProviders[provider];
+      } else {
+        authType = provider.getAuthType();
+      }
+      if (_.has(options, 'authData')) {
+        var authData = this.get('authData') || {};
+        authData[authType] = options.authData;
+        this.set('authData', authData);
+
+        // Overridden so that the user can be made the current user.
+        var newOptions = _.clone(options) || {};
+        newOptions.success = function(model) {
+          model._handleSaveResult(true);
+          if (options.success) {
+            options.success.apply(this, arguments);
+          }
+        };
+        return this.save({'authData': authData}, newOptions);
+      } else {
+        var self = this;
+        var promise = new Parse.Promise();
+        provider.authenticate({
+          success: function(provider, result) {
+            self._linkWith(provider, {
+              authData: result,
+              success: options.success,
+              error: options.error
+            }).then(function() {
+              promise.resolve(self);
+            });
+          },
+          error: function(provider, error) {
+            if (options.error) {
+              options.error(self, error);
+            }
+            promise.reject(error);
+          }
+        });
+        return promise;
+      }
+    },
+
+    /**
+     * Unlinks a user from a service.
+     */
+    _unlinkFrom: function(provider, options) {
+      var authType;
+      if (_.isString(provider)) {
+        authType = provider;
+        provider = Parse.User._authProviders[provider];
+      } else {
+        authType = provider.getAuthType();
+      }
+      var newOptions = _.clone(options);
+      var self = this;
+      newOptions.authData = null;
+      newOptions.success = function(model) {
+        self._synchronizeAuthData(provider);
+        if (options.success) {
+          options.success.apply(this, arguments);
+        }
+      };
+      return this._linkWith(provider, newOptions);
+    },
+
+    /**
+     * Checks whether a user is linked to a service.
+     */
+    _isLinked: function(provider) {
+      var authType;
+      if (_.isString(provider)) {
+        authType = provider;
+      } else {
+        authType = provider.getAuthType();
+      }
+      var authData = this.get('authData') || {};
+      return !!authData[authType];
+    },
+
+    /**
+     * Deauthenticates all providers.
+     */
+    _logOutWithAll: function() {
+      var authData = this.get('authData');
+      if (!authData) {
+        return;
+      }
+      var self = this;
+      Parse._objectEach(this.get('authData'), function(value, key) {
+        self._logOutWith(key);
+      });
+    },
+
+    /**
+     * Deauthenticates a single provider (e.g. removing access tokens from the
+     * Facebook SDK).
+     */
+    _logOutWith: function(provider) {
+      if (!this.isCurrent()) {
+        return;
+      }
+      if (_.isString(provider)) {
+        provider = Parse.User._authProviders[provider];
+      }
+      if (provider && provider.deauthenticate) {
+        provider.deauthenticate();
+      }
+    },
+
+    /**
+     * Signs up a new user. You should call this instead of save for
+     * new Parse.Users. This will create a new Parse.User on the server, and
+     * also persist the session on disk so that you can access the user using
+     * <code>current</code>.
+     *
+     * <p>A username and password must be set before calling signUp.</p>
+     *
+     * <p>Calls options.success or options.error on completion.</p>
+     *
+     * @param {Object} attrs Extra fields to set on the new user, or null.
+     * @param {Object} options A Backbone-style options object.
+     * @return {Parse.Promise} A promise that is fulfilled when the signup
+     *     finishes.
+     * @see Parse.User.signUp
+     */
+    signUp: function(attrs, options) {
+      var error;
+      options = options || {};
+
+      var username = (attrs && attrs.username) || this.get("username");
+      if (!username || (username === "")) {
+        error = new Parse.Error(
+            Parse.Error.OTHER_CAUSE,
+            "Cannot sign up user with an empty name.");
+        if (options && options.error) {
+          options.error(this, error);
+        }
+        return Parse.Promise.error(error);
+      }
+
+      var password = (attrs && attrs.password) || this.get("password");
+      if (!password || (password === "")) {
+        error = new Parse.Error(
+            Parse.Error.OTHER_CAUSE,
+            "Cannot sign up user with an empty password.");
+        if (options && options.error) {
+          options.error(this, error);
+        }
+        return Parse.Promise.error(error);
+      }
+
+      // Overridden so that the user can be made the current user.
+      var newOptions = _.clone(options);
+      newOptions.success = function(model) {
+        model._handleSaveResult(true);
+        if (options.success) {
+          options.success.apply(this, arguments);
+        }
+      };
+      return this.save(attrs, newOptions);
+    },
+
+    /**
+     * Logs in a Parse.User. On success, this saves the session to localStorage,
+     * so you can retrieve the currently logged in user using
+     * <code>current</code>.
+     *
+     * <p>A username and password must be set before calling logIn.</p>
+     *
+     * <p>Calls options.success or options.error on completion.</p>
+     *
+     * @param {Object} options A Backbone-style options object.
+     * @see Parse.User.logIn
+     * @return {Parse.Promise} A promise that is fulfilled with the user when
+     *     the login is complete.
+     */
+    logIn: function(options) {
+      var model = this;
+      options = options || {};
+      var request = Parse._request({
+        route: "login",
+        method: "GET",
+        useMasterKey: options.useMasterKey,
+        data: this.toJSON()
+      });
+      return request.then(function(resp, status, xhr) {
+        var serverAttrs = model.parse(resp, status, xhr);
+        model._finishFetch(serverAttrs);
+        model._handleSaveResult(true);
+        return model;
+      })._thenRunCallbacks(options, this);
+    },
+
+    /**
+     * @see Parse.Object#save
+     */
+    save: function(arg1, arg2, arg3) {
+      var i, attrs, current, options, saved;
+      if (_.isObject(arg1) || _.isNull(arg1) || _.isUndefined(arg1)) {
+        attrs = arg1;
+        options = arg2;
+      } else {
+        attrs = {};
+        attrs[arg1] = arg2;
+        options = arg3;
+      }
+      options = options || {};
+
+      var newOptions = _.clone(options);
+      newOptions.success = function(model) {
+        model._handleSaveResult(false);
+        if (options.success) {
+          options.success.apply(this, arguments);
+        }
+      };
+      return Parse.Object.prototype.save.call(this, attrs, newOptions);
+    },
+
+    /**
+     * @see Parse.Object#fetch
+     */
+    fetch: function(options) {
+      var newOptions = options ? _.clone(options) : {};
+      newOptions.success = function(model) {
+        model._handleSaveResult(false);
+        if (options && options.success) {
+          options.success.apply(this, arguments);
+        }
+      };
+      return Parse.Object.prototype.fetch.call(this, newOptions);
+    },
+
+    /**
+     * Returns true if <code>current</code> would return this user.
+     * @see Parse.User#current
+     */
+    isCurrent: function() {
+      return this._isCurrentUser;
+    },
+
+    /**
+     * Returns get("username").
+     * @return {String}
+     * @see Parse.Object#get
+     */
+    getUsername: function() {
+      return this.get("username");
+    },
+
+    /**
+     * Calls set("username", username, options) and returns the result.
+     * @param {String} username
+     * @param {Object} options A Backbone-style options object.
+     * @return {Boolean}
+     * @see Parse.Object.set
+     */
+    setUsername: function(username, options) {
+      return this.set("username", username, options);
+    },
+
+    /**
+     * Calls set("password", password, options) and returns the result.
+     * @param {String} password
+     * @param {Object} options A Backbone-style options object.
+     * @return {Boolean}
+     * @see Parse.Object.set
+     */
+    setPassword: function(password, options) {
+      return this.set("password", password, options);
+    },
+
+    /**
+     * Returns get("email").
+     * @return {String}
+     * @see Parse.Object#get
+     */
+    getEmail: function() {
+      return this.get("email");
+    },
+
+    /**
+     * Calls set("email", email, options) and returns the result.
+     * @param {String} email
+     * @param {Object} options A Backbone-style options object.
+     * @return {Boolean}
+     * @see Parse.Object.set
+     */
+    setEmail: function(email, options) {
+      return this.set("email", email, options);
+    },
+
+    /**
+     * Checks whether this user is the current user and has been authenticated.
+     * @return (Boolean) whether this user is the current user and is logged in.
+     */
+    authenticated: function() {
+      return !!this._sessionToken &&
+          (Parse.User.current() && Parse.User.current().id === this.id);
+    },
+
+    /**
+     * Returns the session token for this user, if the user has been logged in,
+     * or if it is the result of a query with the master key. Otherwise, returns
+     * undefined.
+     * @return {String} the session token, or undefined
+     */
+    getSessionToken: function() {
+      return this._sessionToken;
+    },
+
+    /**
+     * Request a revocable session token to replace the older style of token.
+     * @param {Object} options A Backbone-style options object.
+     *
+     * @return {Parse.Promise} A promise that is resolved when the replacement
+     *   token has been fetched.
+     */
+    _upgradeToRevocableSession: function(options) {
+      options = options || {};
+      if (!Parse.User.current()) {
+        return Parse.Promise.as()._thenRunCallbacks(options);
+      }
+      var currentSession = Parse.User.current().getSessionToken();
+      if (Parse.Session._isRevocable(currentSession)) {
+        return Parse.Promise.as()._thenRunCallbacks(options);
+      }
+      return Parse._request({
+        route: 'upgradeToRevocableSession',
+        method: 'POST',
+        useMasterKey: options.useMasterKey,
+        sessionToken: currentSession
+      }).then(function(result) {
+        var session = new Parse.Session();
+        session._finishFetch(result);
+        var currentUser = Parse.User.current();
+        currentUser._sessionToken = session.getSessionToken();
+        Parse.User._saveCurrentUser(currentUser);
+      })._thenRunCallbacks(options);
+    },
+
+  }, /** @lends Parse.User */ {
+    // Class Variables
+
+    // The currently logged-in user.
+    _currentUser: null,
+
+    // Whether currentUser is known to match the serialized version on disk.
+    // This is useful for saving a localstorage check if you try to load
+    // _currentUser frequently while there is none stored.
+    _currentUserMatchesDisk: false,
+
+    // The localStorage key suffix that the current user is stored under.
+    _CURRENT_USER_KEY: "currentUser",
+
+    // The mapping of auth provider names to actual providers
+    _authProviders: {},
+
+    // Whether to rewrite className User to _User
+    _performUserRewrite: true,
+
+    // Whether to send a Revocable Session header
+    _isRevocableSessionEnabled: false,
+
+
+    // Class Methods
+
+    /**
+     * Signs up a new user with a username (or email) and password.
+     * This will create a new Parse.User on the server, and also persist the
+     * session in localStorage so that you can access the user using
+     * {@link #current}.
+     *
+     * <p>Calls options.success or options.error on completion.</p>
+     *
+     * @param {String} username The username (or email) to sign up with.
+     * @param {String} password The password to sign up with.
+     * @param {Object} attrs Extra fields to set on the new user.
+     * @param {Object} options A Backbone-style options object.
+     * @return {Parse.Promise} A promise that is fulfilled with the user when
+     *     the signup completes.
+     * @see Parse.User#signUp
+     */
+    signUp: function(username, password, attrs, options) {
+      attrs = attrs || {};
+      attrs.username = username;
+      attrs.password = password;
+      var user = Parse.Object._create("_User");
+      return user.signUp(attrs, options);
+    },
+
+    /**
+     * Logs in a user with a username (or email) and password. On success, this
+     * saves the session to disk, so you can retrieve the currently logged in
+     * user using <code>current</code>.
+     *
+     * <p>Calls options.success or options.error on completion.</p>
+     *
+     * @param {String} username The username (or email) to log in with.
+     * @param {String} password The password to log in with.
+     * @param {Object} options A Backbone-style options object.
+     * @return {Parse.Promise} A promise that is fulfilled with the user when
+     *     the login completes.
+     * @see Parse.User#logIn
+     */
+    logIn: function(username, password, options) {
+      var user = Parse.Object._create("_User");
+      user._finishFetch({ username: username, password: password });
+      return user.logIn(options);
+    },
+
+    /**
+     * Logs in a user with a session token. On success, this saves the session
+     * to disk, so you can retrieve the currently logged in user using
+     * <code>current</code>.
+     *
+     * <p>Calls options.success or options.error on completion.</p>
+     *
+     * @param {String} sessionToken The sessionToken to log in with.
+     * @param {Object} options A Backbone-style options object.
+     * @return {Parse.Promise} A promise that is fulfilled with the user when
+     *     the login completes.
+     */
+    become: function(sessionToken, options) {
+      options = options || {};
+
+      var user = Parse.Object._create("_User");
+      return Parse._request({
+        route: "users",
+        className: "me",
+        method: "GET",
+        useMasterKey: options.useMasterKey,
+        sessionToken: sessionToken
+      }).then(function(resp, status, xhr) {
+        var serverAttrs = user.parse(resp, status, xhr);
+        user._finishFetch(serverAttrs);
+        user._handleSaveResult(true);
+        return user;
+
+      })._thenRunCallbacks(options, user);
+    },
+
+    /**
+     * Logs out the currently logged in user session. This will remove the
+     * session from disk, log out of linked services, and future calls to
+     * <code>current</code> will return <code>null</code>.
+     * @return {Parse.Promise} A promise that is resolved when the session is
+     *   destroyed on the server.
+     */
+    logOut: function() {
+      return Parse.User._currentAsync().then(function(currentUser) {
+        var promise = Parse.Storage.removeItemAsync(
+          Parse._getParsePath(Parse.User._CURRENT_USER_KEY));
+
+        if (currentUser !== null) {
+          var currentSession = currentUser.getSessionToken();
+          if (Parse.Session._isRevocable(currentSession)) {
+            promise.then(function() {
+              return Parse._request({
+                route: 'logout',
+                method: 'POST',
+                sessionToken: currentSession
+              });
+            });
+          }
+          currentUser._logOutWithAll();
+          currentUser._isCurrentUser = false;
+        }
+        Parse.User._currentUserMatchesDisk = true;
+        Parse.User._currentUser = null;
+
+        return promise;
+      });
+    },
+
+    /**
+     * Requests a password reset email to be sent to the specified email address
+     * associated with the user account. This email allows the user to securely
+     * reset their password on the Parse site.
+     *
+     * <p>Calls options.success or options.error on completion.</p>
+     *
+     * @param {String} email The email address associated with the user that
+     *     forgot their password.
+     * @param {Object} options A Backbone-style options object.
+     */
+    requestPasswordReset: function(email, options) {
+      options = options || {};
+      var request = Parse._request({
+        route: "requestPasswordReset",
+        method: "POST",
+        useMasterKey: options.useMasterKey,
+        data: { email: email }
+      });
+      return request._thenRunCallbacks(options);
+    },
+
+    /**
+     * Retrieves the currently logged in ParseUser with a valid session,
+     * either from memory or localStorage, if necessary.
+     * @return {Parse.Object} The currently logged in Parse.User.
+     */
+    current: function() {
+      if (Parse.Storage.async) {
+        // We can't return the current user synchronously
+        Parse.User._currentAsync();
+        return Parse.User._currentUser;
+      }
+      
+      if (Parse.User._currentUser) {
+        return Parse.User._currentUser;
+      }
+
+      if (Parse.User._currentUserMatchesDisk) {
+        
+        return Parse.User._currentUser;
+      }
+
+      // Load the user from local storage.
+      Parse.User._currentUserMatchesDisk = true;
+
+      var userData = Parse.Storage.getItem(Parse._getParsePath(
+          Parse.User._CURRENT_USER_KEY));
+      if (!userData) {
+        
+        return null;
+      }
+      Parse.User._currentUser = Parse.Object._create("_User");
+      Parse.User._currentUser._isCurrentUser = true;
+
+      var json = JSON.parse(userData);
+      Parse.User._currentUser.id = json._id;
+      delete json._id;
+      Parse.User._currentUser._sessionToken = json._sessionToken;
+      delete json._sessionToken;
+      Parse.User._currentUser._finishFetch(json);
+
+      Parse.User._currentUser._synchronizeAllAuthData();
+      Parse.User._currentUser._refreshCache();
+      Parse.User._currentUser._opSetQueue = [{}];
+      return Parse.User._currentUser;
+    },
+
+    /**
+     * Retrieves the currently logged in ParseUser from asynchronous Storage.
+     * @return {Parse.Promise} A Promise that is resolved with the currently
+     *   logged in Parse User
+     */
+    _currentAsync: function() {
+      if (Parse.User._currentUser) {
+        return Parse.Promise.as(Parse.User._currentUser);
+      }
+
+      if (Parse.User._currentUserMatchesDisk) {
+        return Parse.Promise.as(Parse.User._currentUser);
+      }
+
+      // Load the user from Storage
+      return Parse.Storage.getItemAsync(Parse._getParsePath(
+        Parse.User._CURRENT_USER_KEY)).then(function(userData) {
+        if (!userData) {
+          return null;
+        }
+        Parse.User._currentUser = Parse.Object._create("_User");
+        Parse.User._currentUser._isCurrentUser = true;
+
+        var json = JSON.parse(userData);
+        Parse.User._currentUser.id = json._id;
+        delete json._id;
+        Parse.User._currentUser._sessionToken = json._sessionToken;
+        delete json._sessionToken;
+        Parse.User._currentUser._finishFetch(json);
+
+        Parse.User._currentUser._synchronizeAllAuthData();
+        Parse.User._currentUser._refreshCache();
+        Parse.User._currentUser._opSetQueue = [{}];
+        return Parse.User._currentUser;
+      });
+    },
+
+    /**
+     * Allow someone to define a custom User class without className
+     * being rewritten to _User. The default behavior is to rewrite
+     * User to _User for legacy reasons. This allows developers to
+     * override that behavior.
+     *
+     * @param {Boolean} isAllowed Whether or not to allow custom User class
+     */
+    allowCustomUserClass: function(isAllowed) {
+      this._performUserRewrite = !isAllowed;
+    },
+
+    /**
+     * Allow a legacy application to start using revocable sessions. If the
+     * current session token is not revocable, a request will be made for a new,
+     * revocable session.
+     * It is not necessary to call this method from cloud code unless you are
+     * handling user signup or login from the server side. In a cloud code call,
+     * this function will not attempt to upgrade the current token.
+     * @param {Object} options A Backbone-style options object.
+     *
+     * @return {Parse.Promise} A promise that is resolved when the process has
+     *   completed. If a replacement session token is requested, the promise
+     *   will be resolved after a new token has been fetched.
+     */
+    enableRevocableSession: function(options) {
+      options = options || {};
+      Parse.User._isRevocableSessionEnabled = true;
+      if (!Parse._isNode && Parse.User.current()) {
+        return Parse.User.current()._upgradeToRevocableSession(options);
+      }
+      return Parse.Promise.as()._thenRunCallbacks(options);
+    },
+
+    /**
+     * Persists a user as currentUser to localStorage, and into the singleton.
+     */
+    _saveCurrentUser: function(user) {
+      if (Parse.User._currentUser !== null &&
+          Parse.User._currentUser !== user) {
+        Parse.User.logOut();
+      }
+      user._isCurrentUser = true;
+      Parse.User._currentUser = user;
+      Parse.User._currentUserMatchesDisk = true;
+
+      var json = user.toJSON();
+      json._id = user.id;
+      json._sessionToken = user._sessionToken;
+      if (Parse.Storage.async) {
+        Parse.Storage.setItemAsync(
+          Parse._getParsePath(Parse.User._CURRENT_USER_KEY),
+          JSON.stringify(json));
+      } else {
+        Parse.Storage.setItem(
+          Parse._getParsePath(Parse.User._CURRENT_USER_KEY),
+          JSON.stringify(json));
+      }
+    },
+
+    _registerAuthenticationProvider: function(provider) {
+      Parse.User._authProviders[provider.getAuthType()] = provider;
+      // Synchronize the current user with the auth provider.
+      if (Parse.User.current()) {
+        Parse.User.current()._synchronizeAuthData(provider.getAuthType());
+      }
+    },
+
+    _logInWith: function(provider, options) {
+      var user = Parse.Object._create("_User");
+      return user._linkWith(provider, options);
+    }
+
+  });
+}(this));
+
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+
+  /**
+   * @class
+   *
+   * <p>A Parse.Session object is a local representation of a revocable session.
+   * This class is a subclass of a Parse.Object, and retains the same
+   * functionality of a Parse.Object.</p>
+   */
+  Parse.Session = Parse.Object.extend('_Session',
+  /** @lends Parse.Session.prototype */
+  {
+    /**
+     * Returns the session token string.
+     * @return {String}
+     */
+    getSessionToken: function() {
+      return this._sessionToken;
+    },
+
+    /**
+     * Internal method to handle special fields in a _Session response.
+     */
+    _mergeMagicFields: function(attrs) {
+      if (attrs.sessionToken) {
+        this._sessionToken = attrs.sessionToken;
+        delete attrs.sessionToken;
+      }
+      Parse.Session.__super__._mergeMagicFields.call(this, attrs);
+    },
+  }, /** @lends Parse.Session */ {
+
+    // Throw an error when modifying these read-only fields
+    readOnlyAttributes: {
+      createdWith: true,
+      expiresAt: true,
+      installationId: true,
+      restricted: true,
+      sessionToken: true,
+      user: true
+    },
+
+    /**
+     * Retrieves the Session object for the currently logged in session.
+     * @return {Parse.Promise} A promise that is resolved with the Parse.Session
+     *   object after it has been fetched.
+     */
+    current: function(options) {
+      options = options || {};
+
+      var session = Parse.Object._create('_Session');
+      var currentToken = Parse.User.current().getSessionToken();
+      return Parse._request({
+        route: 'sessions',
+        className: 'me',
+        method: 'GET',
+        useMasterKey: options.useMasterKey,
+        sessionToken: currentToken
+      }).then(function(resp, status, xhr) {
+        var serverAttrs = session.parse(resp, status, xhr);
+        session._finishFetch(serverAttrs);
+        return session;
+      })._thenRunCallbacks(options, session);
+    },
+
+    /**
+     * Determines whether a session token is revocable.
+     * @return {Boolean}
+     */
+    _isRevocable: function(token) {
+      return token.indexOf('r:') > -1;
+    },
+
+    /**
+     * Determines whether the current session token is revocable.
+     * This method is useful for migrating Express.js or Node.js web apps to
+     * use revocable sessions. If you are migrating an app that uses the Parse
+     * SDK in the browser only, please use Parse.User.enableRevocableSession()
+     * instead, so that sessions can be automatically upgraded.
+     * @return {Boolean}
+     */
+    isCurrentSessionRevocable: function() {
+      if (Parse.User.current() !== null) {
+        return Parse.Session._isRevocable(
+          Parse.User.current().getSessionToken()
+        );
+      }
+    }
+  });
+})(this);
+
+// Parse.Query is a way to create a list of Parse.Objects.
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Creates a new parse Parse.Query for the given Parse.Object subclass.
+   * @param objectClass -
+   *   An instance of a subclass of Parse.Object, or a Parse className string.
+   * @class
+   *
+   * <p>Parse.Query defines a query that is used to fetch Parse.Objects. The
+   * most common use case is finding all objects that match a query through the
+   * <code>find</code> method. For example, this sample code fetches all objects
+   * of class <code>MyClass</code>. It calls a different function depending on
+   * whether the fetch succeeded or not.
+   * 
+   * <pre>
+   * var query = new Parse.Query(MyClass);
+   * query.find({
+   *   success: function(results) {
+   *     // results is an array of Parse.Object.
+   *   },
+   *
+   *   error: function(error) {
+   *     // error is an instance of Parse.Error.
+   *   }
+   * });</pre></p>
+   * 
+   * <p>A Parse.Query can also be used to retrieve a single object whose id is
+   * known, through the get method. For example, this sample code fetches an
+   * object of class <code>MyClass</code> and id <code>myId</code>. It calls a
+   * different function depending on whether the fetch succeeded or not.
+   * 
+   * <pre>
+   * var query = new Parse.Query(MyClass);
+   * query.get(myId, {
+   *   success: function(object) {
+   *     // object is an instance of Parse.Object.
+   *   },
+   *
+   *   error: function(object, error) {
+   *     // error is an instance of Parse.Error.
+   *   }
+   * });</pre></p>
+   * 
+   * <p>A Parse.Query can also be used to count the number of objects that match
+   * the query without retrieving all of those objects. For example, this
+   * sample code counts the number of objects of the class <code>MyClass</code>
+   * <pre>
+   * var query = new Parse.Query(MyClass);
+   * query.count({
+   *   success: function(number) {
+   *     // There are number instances of MyClass.
+   *   },
+   *
+   *   error: function(error) {
+   *     // error is an instance of Parse.Error.
+   *   }
+   * });</pre></p>
+   */
+  Parse.Query = function(objectClass) {
+    if (_.isString(objectClass)) {
+      objectClass = Parse.Object._getSubclass(objectClass);
+    }
+
+    this.objectClass = objectClass;
+
+    this.className = objectClass.prototype.className;
+
+    this._where = {};
+    this._include = [];
+    this._limit = -1; // negative limit means, do not send a limit
+    this._skip = 0;
+    this._extraOptions = {};
+  };
+
+  /**
+   * Constructs a Parse.Query that is the OR of the passed in queries.  For
+   * example:
+   * <pre>var compoundQuery = Parse.Query.or(query1, query2, query3);</pre>
+   *
+   * will create a compoundQuery that is an or of the query1, query2, and
+   * query3.
+   * @param {...Parse.Query} var_args The list of queries to OR.
+   * @return {Parse.Query} The query that is the OR of the passed in queries.
+   */
+  Parse.Query.or = function() {
+    var queries = _.toArray(arguments);
+    var className = null;
+    Parse._arrayEach(queries, function(q) {
+      if (_.isNull(className)) {
+        className = q.className;
+      }
+
+      if (className !== q.className) {
+        throw "All queries must be for the same class";
+      }
+    });
+    var query = new Parse.Query(className);
+    query._orQuery(queries);
+    return query;
+  };
+
+  Parse.Query.prototype = {
+    /**
+     * Constructs a Parse.Object whose id is already known by fetching data from
+     * the server.  Either options.success or options.error is called when the
+     * find completes.
+     *
+     * @param {String} objectId The id of the object to be fetched.
+     * @param {Object} options A Backbone-style options object.
+     * Valid options are:<ul>
+     *   <li>success: A Backbone-style success callback
+     *   <li>error: An Backbone-style error callback.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     */
+    get: function(objectId, options) {
+      var self = this;
+      self.equalTo('objectId', objectId);
+
+      var firstOptions = {};
+      if (options && _.has(options, 'useMasterKey')) {
+        firstOptions = { useMasterKey: options.useMasterKey };
+      }
+
+      return self.first(firstOptions).then(function(response) {
+        if (response) {
+          return response;
+        }
+
+        var errorObject = new Parse.Error(Parse.Error.OBJECT_NOT_FOUND,
+                                          "Object not found.");
+        return Parse.Promise.error(errorObject);
+
+      })._thenRunCallbacks(options, null);
+    },
+
+    /**
+     * Returns a JSON representation of this query.
+     * @return {Object} The JSON representation of the query.
+     */
+    toJSON: function() {
+      var params = {
+        where: this._where
+      };
+
+      if (this._include.length > 0) {
+        params.include = this._include.join(",");
+      }
+      if (this._select) {
+        params.keys = this._select.join(",");
+      }
+      if (this._limit >= 0) {
+        params.limit = this._limit;
+      }
+      if (this._skip > 0) {
+        params.skip = this._skip;
+      }
+      if (this._order !== undefined) {
+        params.order = this._order.join(",");
+      }
+
+      Parse._objectEach(this._extraOptions, function(v, k) {
+        params[k] = v;
+      });
+
+      return params;
+    },
+
+    /**
+     * Retrieves a list of ParseObjects that satisfy this query.
+     * Either options.success or options.error is called when the find
+     * completes.
+     *
+     * @param {Object} options A Backbone-style options object. Valid options
+     * are:<ul>
+     *   <li>success: Function to call when the find completes successfully.
+     *   <li>error: Function to call when the find fails.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     *
+     * @return {Parse.Promise} A promise that is resolved with the results when
+     * the query completes.
+     */
+    find: function(options) {
+      var self = this;
+      options = options || {};
+
+      var request = Parse._request({
+        route: "classes",
+        className: this.className,
+        method: "GET",
+        useMasterKey: options.useMasterKey,
+        data: this.toJSON()
+      });
+
+      return request.then(function(response) {
+        return _.map(response.results, function(json) {
+          var obj;
+          if (response.className) {
+            obj = new Parse.Object(response.className);
+          } else {
+            obj = new self.objectClass();
+          }
+          obj._finishFetch(json, true);
+          return obj;
+        });
+      })._thenRunCallbacks(options);
+    },
+
+    /**
+     * Counts the number of objects that match this query.
+     * Either options.success or options.error is called when the count
+     * completes.
+     *
+     * @param {Object} options A Backbone-style options object. Valid options
+     * are:<ul>
+     *   <li>success: Function to call when the count completes successfully.
+     *   <li>error: Function to call when the find fails.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     *
+     * @return {Parse.Promise} A promise that is resolved with the count when
+     * the query completes.
+     */
+    count: function(options) {
+      var self = this;
+      options = options || {};
+
+      var params = this.toJSON();
+      params.limit = 0;
+      params.count = 1;
+      var request = Parse._request({
+        route: "classes",
+        className: self.className, 
+        method: "GET",
+        useMasterKey: options.useMasterKey,
+        data: params
+      });
+
+      return request.then(function(response) {
+        return response.count;
+      })._thenRunCallbacks(options);
+    },
+
+    /**
+     * Retrieves at most one Parse.Object that satisfies this query.
+     *
+     * Either options.success or options.error is called when it completes.
+     * success is passed the object if there is one. otherwise, undefined.
+     *
+     * @param {Object} options A Backbone-style options object. Valid options
+     * are:<ul>
+     *   <li>success: Function to call when the find completes successfully.
+     *   <li>error: Function to call when the find fails.
+     *   <li>useMasterKey: In Cloud Code and Node only, causes the Master Key to
+     *     be used for this request.
+     * </ul>
+     *
+     * @return {Parse.Promise} A promise that is resolved with the object when
+     * the query completes.
+     */
+    first: function(options) {
+      var self = this;
+      options = options || {};
+
+      var params = this.toJSON();
+      params.limit = 1;
+      var request = Parse._request({
+        route: "classes",
+        className: this.className, 
+        method: "GET",
+        useMasterKey: options.useMasterKey,
+        data: params
+      });
+
+      return request.then(function(response) {
+        return _.map(response.results, function(json) {
+          var obj;
+          if (response.className) {
+            obj = new Parse.Object(response.className);
+          } else {
+            obj = new self.objectClass();
+          }
+          obj._finishFetch(json, true);
+          return obj;
+        })[0];
+      })._thenRunCallbacks(options);
+    },
+
+    /**
+     * Returns a new instance of Parse.Collection backed by this query.
+     * @param {Array} items An array of instances of <code>Parse.Object</code>
+     *     with which to start this Collection.
+     * @param {Object} options An optional object with Backbone-style options.
+     * Valid options are:<ul>
+     *   <li>model: The Parse.Object subclass that this collection contains.
+     *   <li>query: An instance of Parse.Query to use when fetching items.
+     *   <li>comparator: A string property name or function to sort by.
+     * </ul>
+     * @return {Parse.Collection}
+     */
+    collection: function(items, options) {
+      options = options || {};
+      return new Parse.Collection(items, _.extend(options, {
+        model: this.objectClass,
+        query: this
+      }));
+    },
+
+    /**
+     * Sets the number of results to skip before returning any results.
+     * This is useful for pagination.
+     * Default is to skip zero results.
+     * @param {Number} n the number of results to skip.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    skip: function(n) {
+      this._skip = n;
+      return this;
+    },
+
+    /**
+     * Sets the limit of the number of results to return. The default limit is
+     * 100, with a maximum of 1000 results being returned at a time.
+     * @param {Number} n the number of results to limit to.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    limit: function(n) {
+      this._limit = n;
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be equal to the provided value.
+     * @param {String} key The key to check.
+     * @param value The value that the Parse.Object must contain.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    equalTo: function(key, value) {
+      if (_.isUndefined(value)) {
+        return this.doesNotExist(key);
+      } 
+
+      this._where[key] = Parse._encode(value);
+      return this;
+    },
+
+    /**
+     * Helper for condition queries
+     */
+    _addCondition: function(key, condition, value) {
+      // Check if we already have a condition
+      if (!this._where[key]) {
+        this._where[key] = {};
+      }
+      this._where[key][condition] = Parse._encode(value);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be not equal to the provided value.
+     * @param {String} key The key to check.
+     * @param value The value that must not be equalled.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    notEqualTo: function(key, value) {
+      this._addCondition(key, "$ne", value);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be less than the provided value.
+     * @param {String} key The key to check.
+     * @param value The value that provides an upper bound.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    lessThan: function(key, value) {
+      this._addCondition(key, "$lt", value);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be greater than the provided value.
+     * @param {String} key The key to check.
+     * @param value The value that provides an lower bound.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    greaterThan: function(key, value) {
+      this._addCondition(key, "$gt", value);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be less than or equal to the provided value.
+     * @param {String} key The key to check.
+     * @param value The value that provides an upper bound.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    lessThanOrEqualTo: function(key, value) {
+      this._addCondition(key, "$lte", value);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be greater than or equal to the provided value.
+     * @param {String} key The key to check.
+     * @param value The value that provides an lower bound.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    greaterThanOrEqualTo: function(key, value) {
+      this._addCondition(key, "$gte", value);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * be contained in the provided list of values.
+     * @param {String} key The key to check.
+     * @param {Array} values The values that will match.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    containedIn: function(key, values) {
+      this._addCondition(key, "$in", values);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * not be contained in the provided list of values.
+     * @param {String} key The key to check.
+     * @param {Array} values The values that will not match.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    notContainedIn: function(key, values) {
+      this._addCondition(key, "$nin", values);
+      return this;
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's value to
+     * contain each one of the provided list of values.
+     * @param {String} key The key to check.  This key's value must be an array.
+     * @param {Array} values The values that will match.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    containsAll: function(key, values) {
+      this._addCondition(key, "$all", values);
+      return this;
+    },
+
+
+    /**
+     * Add a constraint for finding objects that contain the given key.
+     * @param {String} key The key that should exist.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    exists: function(key) {
+      this._addCondition(key, "$exists", true);
+      return this;
+    },
+
+    /**
+     * Add a constraint for finding objects that do not contain a given key.
+     * @param {String} key The key that should not exist
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    doesNotExist: function(key) {
+      this._addCondition(key, "$exists", false);
+      return this;
+    },
+
+    /**
+     * Add a regular expression constraint for finding string values that match
+     * the provided regular expression.
+     * This may be slow for large datasets.
+     * @param {String} key The key that the string to match is stored in.
+     * @param {RegExp} regex The regular expression pattern to match.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    matches: function(key, regex, modifiers) {
+      this._addCondition(key, "$regex", regex);
+      if (!modifiers) { modifiers = ""; }
+      // Javascript regex options support mig as inline options but store them 
+      // as properties of the object. We support mi & should migrate them to
+      // modifiers
+      if (regex.ignoreCase) { modifiers += 'i'; }
+      if (regex.multiline) { modifiers += 'm'; }
+
+      if (modifiers && modifiers.length) {
+        this._addCondition(key, "$options", modifiers);
+      }
+      return this;
+    },
+
+    /**
+     * Add a constraint that requires that a key's value matches a Parse.Query
+     * constraint.
+     * @param {String} key The key that the contains the object to match the
+     *                     query.
+     * @param {Parse.Query} query The query that should match.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    matchesQuery: function(key, query) {
+      var queryJSON = query.toJSON();
+      queryJSON.className = query.className;
+      this._addCondition(key, "$inQuery", queryJSON);
+      return this;
+    },
+
+   /**
+     * Add a constraint that requires that a key's value not matches a
+     * Parse.Query constraint.
+     * @param {String} key The key that the contains the object to match the
+     *                     query.
+     * @param {Parse.Query} query The query that should not match.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    doesNotMatchQuery: function(key, query) {
+      var queryJSON = query.toJSON();
+      queryJSON.className = query.className;
+      this._addCondition(key, "$notInQuery", queryJSON);
+      return this;
+    },
+
+
+    /**
+     * Add a constraint that requires that a key's value matches a value in
+     * an object returned by a different Parse.Query.
+     * @param {String} key The key that contains the value that is being
+     *                     matched.
+     * @param {String} queryKey The key in the objects returned by the query to
+     *                          match against.
+     * @param {Parse.Query} query The query to run.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    matchesKeyInQuery: function(key, queryKey, query) {
+      var queryJSON = query.toJSON();
+      queryJSON.className = query.className;
+      this._addCondition(key, "$select",
+                         { key: queryKey, query: queryJSON });
+      return this;
+    },
+
+    /**
+     * Add a constraint that requires that a key's value not match a value in
+     * an object returned by a different Parse.Query.
+     * @param {String} key The key that contains the value that is being
+     *                     excluded.
+     * @param {String} queryKey The key in the objects returned by the query to
+     *                          match against.
+     * @param {Parse.Query} query The query to run.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    doesNotMatchKeyInQuery: function(key, queryKey, query) {
+      var queryJSON = query.toJSON();
+      queryJSON.className = query.className;
+      this._addCondition(key, "$dontSelect",
+                         { key: queryKey, query: queryJSON });
+      return this;
+    },
+
+    /**
+     * Add constraint that at least one of the passed in queries matches.
+     * @param {Array} queries
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    _orQuery: function(queries) {
+      var queryJSON = _.map(queries, function(q) {
+        return q.toJSON().where;
+      });
+
+      this._where.$or = queryJSON;
+      return this;
+    },
+
+    /**
+     * Converts a string into a regex that matches it.
+     * Surrounding with \Q .. \E does this, we just need to escape \E's in
+     * the text separately.
+     */
+    _quote: function(s) {
+      return "\\Q" + s.replace("\\E", "\\E\\\\E\\Q") + "\\E";
+    },
+
+    /**
+     * Add a constraint for finding string values that contain a provided
+     * string.  This may be slow for large datasets.
+     * @param {String} key The key that the string to match is stored in.
+     * @param {String} substring The substring that the value must contain.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    contains: function(key, value) {
+      this._addCondition(key, "$regex", this._quote(value));
+      return this;
+    },
+
+    /**
+     * Add a constraint for finding string values that start with a provided
+     * string.  This query will use the backend index, so it will be fast even
+     * for large datasets.
+     * @param {String} key The key that the string to match is stored in.
+     * @param {String} prefix The substring that the value must start with.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    startsWith: function(key, value) {
+      this._addCondition(key, "$regex", "^" + this._quote(value));
+      return this;
+    },
+
+    /**
+     * Add a constraint for finding string values that end with a provided
+     * string.  This will be slow for large datasets.
+     * @param {String} key The key that the string to match is stored in.
+     * @param {String} suffix The substring that the value must end with.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    endsWith: function(key, value) {
+      this._addCondition(key, "$regex", this._quote(value) + "$");
+      return this;
+    },
+
+    /**
+     * Sorts the results in ascending order by the given key.
+     * 
+     * @param {(String|String[]|...String} key The key to order by, which is a 
+     * string of comma separated values, or an Array of keys, or multiple keys.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    ascending: function() {
+      this._order = [];
+      return this.addAscending.apply(this, arguments);
+    },
+
+    /**
+     * Sorts the results in ascending order by the given key, 
+     * but can also add secondary sort descriptors without overwriting _order.
+     * 
+     * @param {(String|String[]|...String} key The key to order by, which is a
+     * string of comma separated values, or an Array of keys, or multiple keys.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    addAscending: function(key) {
+      var self = this; 
+      if (!this._order) {
+        this._order = [];
+      }
+      Parse._arrayEach(arguments, function(key) {
+        if (Array.isArray(key)) {
+          key = key.join();
+        }
+        self._order = self._order.concat(key.replace(/\s/g, "").split(","));
+      });
+      return this;
+    },
+
+    /**
+     * Sorts the results in descending order by the given key.
+     * 
+     * @param {(String|String[]|...String} key The key to order by, which is a
+     * string of comma separated values, or an Array of keys, or multiple keys.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    descending: function(key) {
+      this._order = [];
+      return this.addDescending.apply(this, arguments);
+    },
+
+    /**
+     * Sorts the results in descending order by the given key,
+     * but can also add secondary sort descriptors without overwriting _order.
+     * 
+     * @param {(String|String[]|...String} key The key to order by, which is a
+     * string of comma separated values, or an Array of keys, or multiple keys.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    addDescending: function(key) {
+      var self = this; 
+      if (!this._order) {
+        this._order = [];
+      }
+      Parse._arrayEach(arguments, function(key) {
+        if (Array.isArray(key)) {
+          key = key.join();
+        }
+        self._order = self._order.concat(
+          _.map(key.replace(/\s/g, "").split(","), 
+            function(k) { return "-" + k; }));
+      });
+      return this;
+    },
+
+    /**
+     * Add a proximity based constraint for finding objects with key point
+     * values near the point given.
+     * @param {String} key The key that the Parse.GeoPoint is stored in.
+     * @param {Parse.GeoPoint} point The reference Parse.GeoPoint that is used.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    near: function(key, point) {
+      if (!(point instanceof Parse.GeoPoint)) {
+        // Try to cast it to a GeoPoint, so that near("loc", [20,30]) works.
+        point = new Parse.GeoPoint(point);
+      }
+      this._addCondition(key, "$nearSphere", point);
+      return this;
+    },
+
+    /**
+     * Add a proximity based constraint for finding objects with key point
+     * values near the point given and within the maximum distance given.
+     * @param {String} key The key that the Parse.GeoPoint is stored in.
+     * @param {Parse.GeoPoint} point The reference Parse.GeoPoint that is used.
+     * @param {Number} maxDistance Maximum distance (in radians) of results to
+     *   return.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    withinRadians: function(key, point, distance) {
+      this.near(key, point);
+      this._addCondition(key, "$maxDistance", distance);
+      return this;
+    },
+
+    /**
+     * Add a proximity based constraint for finding objects with key point
+     * values near the point given and within the maximum distance given.
+     * Radius of earth used is 3958.8 miles.
+     * @param {String} key The key that the Parse.GeoPoint is stored in.
+     * @param {Parse.GeoPoint} point The reference Parse.GeoPoint that is used.
+     * @param {Number} maxDistance Maximum distance (in miles) of results to
+     *     return.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    withinMiles: function(key, point, distance) {
+      return this.withinRadians(key, point, distance / 3958.8);
+    },
+
+    /**
+     * Add a proximity based constraint for finding objects with key point
+     * values near the point given and within the maximum distance given.
+     * Radius of earth used is 6371.0 kilometers.
+     * @param {String} key The key that the Parse.GeoPoint is stored in.
+     * @param {Parse.GeoPoint} point The reference Parse.GeoPoint that is used.
+     * @param {Number} maxDistance Maximum distance (in kilometers) of results
+     *     to return.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    withinKilometers: function(key, point, distance) {
+      return this.withinRadians(key, point, distance / 6371.0);
+    },
+
+    /**
+     * Add a constraint to the query that requires a particular key's
+     * coordinates be contained within a given rectangular geographic bounding
+     * box.
+     * @param {String} key The key to be constrained.
+     * @param {Parse.GeoPoint} southwest
+     *     The lower-left inclusive corner of the box.
+     * @param {Parse.GeoPoint} northeast
+     *     The upper-right inclusive corner of the box.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    withinGeoBox: function(key, southwest, northeast) {
+      if (!(southwest instanceof Parse.GeoPoint)) {
+        southwest = new Parse.GeoPoint(southwest);
+      }
+      if (!(northeast instanceof Parse.GeoPoint)) {
+        northeast = new Parse.GeoPoint(northeast);
+      }
+      this._addCondition(key, '$within', { '$box': [southwest, northeast] });
+      return this;
+    },
+
+    /**
+     * Include nested Parse.Objects for the provided key.  You can use dot
+     * notation to specify which fields in the included object are also fetched.
+     * @param {String} key The name of the key to include.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    include: function() {
+      var self = this;
+      Parse._arrayEach(arguments, function(key) {
+        if (_.isArray(key)) {
+          self._include = self._include.concat(key);
+        } else {
+          self._include.push(key);
+        }
+      });
+      return this;
+    },
+
+    /**
+     * Restrict the fields of the returned Parse.Objects to include only the
+     * provided keys.  If this is called multiple times, then all of the keys
+     * specified in each of the calls will be included.
+     * @param {Array} keys The names of the keys to include.
+     * @return {Parse.Query} Returns the query, so you can chain this call.
+     */
+    select: function() {
+      var self = this;
+      this._select = this._select || [];
+      Parse._arrayEach(arguments, function(key) {
+        if (_.isArray(key)) {
+          self._select = self._select.concat(key);
+        } else {
+          self._select.push(key);
+        }
+      });
+      return this;
+    },
+
+    /**
+     * Iterates over each result of a query, calling a callback for each one. If
+     * the callback returns a promise, the iteration will not continue until
+     * that promise has been fulfilled. If the callback returns a rejected
+     * promise, then iteration will stop with that error. The items are
+     * processed in an unspecified order. The query may not have any sort order,
+     * and may not use limit or skip.
+     * @param {Function} callback Callback that will be called with each result
+     *     of the query.
+     * @param {Object} options An optional Backbone-like options object with
+     *     success and error callbacks that will be invoked once the iteration
+     *     has finished.
+     * @return {Parse.Promise} A promise that will be fulfilled once the
+     *     iteration has completed.
+     */
+    each: function(callback, options) {
+      options = options || {};
+
+      if (this._order || this._skip || (this._limit >= 0)) {
+        var error =
+          "Cannot iterate on a query with sort, skip, or limit.";
+        return Parse.Promise.error(error)._thenRunCallbacks(options);
+      }
+
+      var promise = new Parse.Promise();
+
+      var query = new Parse.Query(this.objectClass);
+      // We can override the batch size from the options.
+      // This is undocumented, but useful for testing.
+      query._limit = options.batchSize || 100;
+      query._where = _.clone(this._where);
+      query._include = _.clone(this._include);
+      if (this._select) {
+        query._select = _.clone(this._select);
+      }
+
+      query.ascending('objectId');
+
+      var findOptions = {};
+      if (_.has(options, "useMasterKey")) {
+        findOptions.useMasterKey = options.useMasterKey;
+      }
+
+      var finished = false;
+      return Parse.Promise._continueWhile(function() {
+        return !finished;
+
+      }, function() {
+        return query.find(findOptions).then(function(results) {
+          var callbacksDone = Parse.Promise.as();
+          Parse._.each(results, function(result) {
+            callbacksDone = callbacksDone.then(function() {
+              return callback(result);
+            });
+          });
+
+          return callbacksDone.then(function() {
+            if (results.length >= query._limit) {
+              query.greaterThan("objectId", results[results.length - 1].id);
+            } else {
+              finished = true;
+            }
+          });
+        });
+      })._thenRunCallbacks(options);
+    }
+  };
+
+}(this));
+
+/*global FB: false , console: false*/
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  var PUBLIC_KEY = "*";
+
+  var initialized = false;
+  var requestedPermissions;
+  var initOptions;
+  var provider = {
+    authenticate: function(options) {
+      var self = this;
+      FB.login(function(response) {
+        if (response.authResponse) {
+          if (options.success) {
+            options.success(self, {
+              id: response.authResponse.userID,
+              access_token: response.authResponse.accessToken,
+              expiration_date: new Date(response.authResponse.expiresIn * 1000 +
+                  (new Date()).getTime()).toJSON()
+            });
+          }
+        } else {
+          if (options.error) {
+            options.error(self, response);
+          }
+        }
+      }, {
+        scope: requestedPermissions
+      });
+    },
+    restoreAuthentication: function(authData) {
+      if (authData) {
+        var authResponse = {
+          userID: authData.id,
+          accessToken: authData.access_token,
+          expiresIn: (Parse._parseDate(authData.expiration_date).getTime() -
+              (new Date()).getTime()) / 1000
+        };
+        var newOptions = _.clone(initOptions);
+        newOptions.authResponse = authResponse;
+
+        // Suppress checks for login status from the browser.
+        newOptions.status = false;
+
+        // If the user doesn't match the one known by the FB SDK, log out.
+        // Most of the time, the users will match -- it's only in cases where
+        // the FB SDK knows of a different user than the one being restored
+        // from a Parse User that logged in with username/password.
+        var existingResponse = FB.getAuthResponse();
+        if (existingResponse &&
+            existingResponse.userID !== authResponse.userID) {
+          FB.logout();
+        }
+
+        FB.init(newOptions);
+      }
+      return true;
+    },
+    getAuthType: function() {
+      return "facebook";
+    },
+    deauthenticate: function() {
+      this.restoreAuthentication(null);
+    }
+  };
+
+  /**
+   * Provides a set of utilities for using Parse with Facebook.
+   * @namespace
+   * Provides a set of utilities for using Parse with Facebook.
+   */
+  Parse.FacebookUtils = {
+    /**
+     * Initializes Parse Facebook integration.  Call this function after you
+     * have loaded the Facebook Javascript SDK with the same parameters
+     * as you would pass to<code>
+     * <a href=
+     * "https://developers.facebook.com/docs/reference/javascript/FB.init/">
+     * FB.init()</a></code>.  Parse.FacebookUtils will invoke FB.init() for you
+     * with these arguments.
+     *
+     * @param {Object} options Facebook options argument as described here:
+     *   <a href=
+     *   "https://developers.facebook.com/docs/reference/javascript/FB.init/">
+     *   FB.init()</a>. The status flag will be coerced to 'false' because it
+     *   interferes with Parse Facebook integration. Call FB.getLoginStatus()
+     *   explicitly if this behavior is required by your application.
+     */
+    init: function(options) {
+      if (typeof(FB) === 'undefined') {
+        throw "The Facebook JavaScript SDK must be loaded before calling init.";
+      } 
+      initOptions = _.clone(options) || {};
+      if (initOptions.status && typeof(console) !== "undefined") {
+        var warn = console.warn || console.log || function() {};
+        warn.call(console, "The 'status' flag passed into" +
+          " FB.init, when set to true, can interfere with Parse Facebook" +
+          " integration, so it has been suppressed. Please call" +
+          " FB.getLoginStatus() explicitly if you require this behavior.");
+      }
+      initOptions.status = false;
+      FB.init(initOptions);
+      Parse.User._registerAuthenticationProvider(provider);
+      initialized = true;
+    },
+
+    /**
+     * Gets whether the user has their account linked to Facebook.
+     * 
+     * @param {Parse.User} user User to check for a facebook link.
+     *     The user must be logged in on this device.
+     * @return {Boolean} <code>true</code> if the user has their account
+     *     linked to Facebook.
+     */
+    isLinked: function(user) {
+      return user._isLinked("facebook");
+    },
+
+    /**
+     * Logs in a user using Facebook. This method delegates to the Facebook
+     * SDK to authenticate the user, and then automatically logs in (or
+     * creates, in the case where it is a new user) a Parse.User.
+     * 
+     * @param {String, Object} permissions The permissions required for Facebook
+     *    log in.  This is a comma-separated string of permissions.
+     *    Alternatively, supply a Facebook authData object as described in our
+     *    REST API docs if you want to handle getting facebook auth tokens
+     *    yourself.
+     * @param {Object} options Standard options object with success and error
+     *    callbacks.
+     */
+    logIn: function(permissions, options) {
+      if (!permissions || _.isString(permissions)) {
+        if (!initialized) {
+          throw "You must initialize FacebookUtils before calling logIn.";
+        }
+        requestedPermissions = permissions;
+        return Parse.User._logInWith("facebook", options);
+      } else {
+        var newOptions = _.clone(options) || {};
+        newOptions.authData = permissions;
+        return Parse.User._logInWith("facebook", newOptions);
+      }
+    },
+
+    /**
+     * Links Facebook to an existing PFUser. This method delegates to the
+     * Facebook SDK to authenticate the user, and then automatically links
+     * the account to the Parse.User.
+     *
+     * @param {Parse.User} user User to link to Facebook. This must be the
+     *     current user.
+     * @param {String, Object} permissions The permissions required for Facebook
+     *    log in.  This is a comma-separated string of permissions. 
+     *    Alternatively, supply a Facebook authData object as described in our
+     *    REST API docs if you want to handle getting facebook auth tokens
+     *    yourself.
+     * @param {Object} options Standard options object with success and error
+     *    callbacks.
+     */
+    link: function(user, permissions, options) {
+      if (!permissions || _.isString(permissions)) {
+        if (!initialized) {
+          throw "You must initialize FacebookUtils before calling link.";
+        }
+        requestedPermissions = permissions;
+        return user._linkWith("facebook", options);
+      } else {
+        var newOptions = _.clone(options) || {};
+        newOptions.authData = permissions;
+        return user._linkWith("facebook", newOptions);
+      }
+    },
+
+    /**
+     * Unlinks the Parse.User from a Facebook account. 
+     * 
+     * @param {Parse.User} user User to unlink from Facebook. This must be the
+     *     current user.
+     * @param {Object} options Standard options object with success and error
+     *    callbacks.
+     */
+    unlink: function(user, options) {
+      if (!initialized) {
+        throw "You must initialize FacebookUtils before calling unlink.";
+      }
+      return user._unlinkFrom("facebook", options);
+    }
+  };
+  
+}(this));
+
+/*global _: false, document: false, window: false, navigator: false */
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * History serves as a global router (per frame) to handle hashchange
+   * events or pushState, match the appropriate route, and trigger
+   * callbacks. You shouldn't ever have to create one of these yourself
+   * — you should use the reference to <code>Parse.history</code>
+   * that will be created for you automatically if you make use of 
+   * Routers with routes.
+   * @class
+   *   
+   * <p>A fork of Backbone.History, provided for your convenience.  If you 
+   * use this class, you must also include jQuery, or another library 
+   * that provides a jQuery-compatible $ function.  For more information,
+   * see the <a href="http://documentcloud.github.com/backbone/#History">
+   * Backbone documentation</a>.</p>
+   * <p><strong><em>Available in the client SDK only.</em></strong></p>
+   */
+  Parse.History = function() {
+    this.handlers = [];
+    _.bindAll(this, 'checkUrl');
+  };
+
+  // Cached regex for cleaning leading hashes and slashes .
+  var routeStripper = /^[#\/]/;
+
+  // Cached regex for detecting MSIE.
+  var isExplorer = /msie [\w.]+/;
+
+  // Has the history handling already been started?
+  Parse.History.started = false;
+
+  // Set up all inheritable **Parse.History** properties and methods.
+  _.extend(Parse.History.prototype, Parse.Events,
+           /** @lends Parse.History.prototype */ {
+
+    // The default interval to poll for hash changes, if necessary, is
+    // twenty times a second.
+    interval: 50,
+
+    // Gets the true hash value. Cannot use location.hash directly due to bug
+    // in Firefox where location.hash will always be decoded.
+    getHash: function(windowOverride) {
+      var loc = windowOverride ? windowOverride.location : window.location;
+      var match = loc.href.match(/#(.*)$/);
+      return match ? match[1] : '';
+    },
+
+    // Get the cross-browser normalized URL fragment, either from the URL,
+    // the hash, or the override.
+    getFragment: function(fragment, forcePushState) {
+      if (Parse._isNullOrUndefined(fragment)) {
+        if (this._hasPushState || forcePushState) {
+          fragment = window.location.pathname;
+          var search = window.location.search;
+          if (search) {
+            fragment += search;
+          }
+        } else {
+          fragment = this.getHash();
+        }
+      }
+      if (!fragment.indexOf(this.options.root)) {
+        fragment = fragment.substr(this.options.root.length);
+      }
+      return fragment.replace(routeStripper, '');
+    },
+
+    /**
+     * Start the hash change handling, returning `true` if the current
+     * URL matches an existing route, and `false` otherwise.
+     */
+    start: function(options) {
+      if (Parse.History.started) {
+        throw new Error("Parse.history has already been started");
+      }
+      Parse.History.started = true;
+
+      // Figure out the initial configuration. Do we need an iframe?
+      // Is pushState desired ... is it available?
+      this.options = _.extend({}, {root: '/'}, this.options, options);
+      this._wantsHashChange = this.options.hashChange !== false;
+      this._wantsPushState = !!this.options.pushState;
+      this._hasPushState = !!(this.options.pushState && 
+                              window.history &&
+                              window.history.pushState);
+      var fragment = this.getFragment();
+      var docMode = document.documentMode;
+      var oldIE = (isExplorer.exec(navigator.userAgent.toLowerCase()) &&
+                   (!docMode || docMode <= 7));
+
+      if (oldIE) {
+        this.iframe = Parse.$('<iframe src="javascript:0" tabindex="-1" />')
+                      .hide().appendTo('body')[0].contentWindow;
+        this.navigate(fragment);
+      }
+
+      // Depending on whether we're using pushState or hashes, and whether
+      // 'onhashchange' is supported, determine how we check the URL state.
+      if (this._hasPushState) {
+        Parse.$(window).bind('popstate', this.checkUrl);
+      } else if (this._wantsHashChange &&
+                 ('onhashchange' in window) &&
+                 !oldIE) {
+        Parse.$(window).bind('hashchange', this.checkUrl);
+      } else if (this._wantsHashChange) {
+        this._checkUrlInterval = window.setInterval(this.checkUrl,
+                                                    this.interval);
+      }
+
+      // Determine if we need to change the base url, for a pushState link
+      // opened by a non-pushState browser.
+      this.fragment = fragment;
+      var loc = window.location;
+      var atRoot  = loc.pathname === this.options.root;
+
+      // If we've started off with a route from a `pushState`-enabled browser,
+      // but we're currently in a browser that doesn't support it...
+      if (this._wantsHashChange && 
+          this._wantsPushState && 
+          !this._hasPushState &&
+          !atRoot) {
+        this.fragment = this.getFragment(null, true);
+        window.location.replace(this.options.root + '#' + this.fragment);
+        // Return immediately as browser will do redirect to new url
+        return true;
+
+      // Or if we've started out with a hash-based route, but we're currently
+      // in a browser where it could be `pushState`-based instead...
+      } else if (this._wantsPushState &&
+                 this._hasPushState && 
+                 atRoot &&
+                 loc.hash) {
+        this.fragment = this.getHash().replace(routeStripper, '');
+        window.history.replaceState({}, document.title,
+            loc.protocol + '//' + loc.host + this.options.root + this.fragment);
+      }
+
+      if (!this.options.silent) {
+        return this.loadUrl();
+      }
+    },
+
+    // Disable Parse.history, perhaps temporarily. Not useful in a real app,
+    // but possibly useful for unit testing Routers.
+    stop: function() {
+      Parse.$(window).unbind('popstate', this.checkUrl)
+                     .unbind('hashchange', this.checkUrl);
+      window.clearInterval(this._checkUrlInterval);
+      Parse.History.started = false;
+    },
+
+    // Add a route to be tested when the fragment changes. Routes added later
+    // may override previous routes.
+    route: function(route, callback) {
+      this.handlers.unshift({route: route, callback: callback});
+    },
+
+    // Checks the current URL to see if it has changed, and if it has,
+    // calls `loadUrl`, normalizing across the hidden iframe.
+    checkUrl: function(e) {
+      var current = this.getFragment();
+      if (current === this.fragment && this.iframe) {
+        current = this.getFragment(this.getHash(this.iframe));
+      }
+      if (current === this.fragment) {
+        return false;
+      }
+      if (this.iframe) {
+        this.navigate(current);
+      }
+      if (!this.loadUrl()) {
+        this.loadUrl(this.getHash());
+      }
+    },
+
+    // Attempt to load the current URL fragment. If a route succeeds with a
+    // match, returns `true`. If no defined routes matches the fragment,
+    // returns `false`.
+    loadUrl: function(fragmentOverride) {
+      var fragment = this.fragment = this.getFragment(fragmentOverride);
+      var matched = _.any(this.handlers, function(handler) {
+        if (handler.route.test(fragment)) {
+          handler.callback(fragment);
+          return true;
+        }
+      });
+      return matched;
+    },
+
+    // Save a fragment into the hash history, or replace the URL state if the
+    // 'replace' option is passed. You are responsible for properly URL-encoding
+    // the fragment in advance.
+    //
+    // The options object can contain `trigger: true` if you wish to have the
+    // route callback be fired (not usually desirable), or `replace: true`, if
+    // you wish to modify the current URL without adding an entry to the
+    // history.
+    navigate: function(fragment, options) {
+      if (!Parse.History.started) {
+        return false;
+      }
+      if (!options || options === true) {
+        options = {trigger: options};
+      }
+      var frag = (fragment || '').replace(routeStripper, '');
+      if (this.fragment === frag) {
+        return;
+      }
+
+      // If pushState is available, we use it to set the fragment as a real URL.
+      if (this._hasPushState) {
+        if (frag.indexOf(this.options.root) !== 0) {
+          frag = this.options.root + frag;
+        }
+        this.fragment = frag;
+        var replaceOrPush = options.replace ? 'replaceState' : 'pushState';
+        window.history[replaceOrPush]({}, document.title, frag);
+
+      // If hash changes haven't been explicitly disabled, update the hash
+      // fragment to store history.
+      } else if (this._wantsHashChange) {
+        this.fragment = frag;
+        this._updateHash(window.location, frag, options.replace);
+        if (this.iframe &&
+            (frag !== this.getFragment(this.getHash(this.iframe)))) {
+          // Opening and closing the iframe tricks IE7 and earlier
+          // to push a history entry on hash-tag change.
+          // When replace is true, we don't want this.
+          if (!options.replace) {
+            this.iframe.document.open().close();
+          }
+          this._updateHash(this.iframe.location, frag, options.replace);
+        }
+
+      // If you've told us that you explicitly don't want fallback hashchange-
+      // based history, then `navigate` becomes a page refresh.
+      } else {
+        window.location.assign(this.options.root + fragment);
+      }
+      if (options.trigger) {
+        this.loadUrl(fragment);
+      }
+    },
+
+    // Update the hash location, either replacing the current entry, or adding
+    // a new one to the browser history.
+    _updateHash: function(location, fragment, replace) {
+      if (replace) {
+        var s = location.toString().replace(/(javascript:|#).*$/, '');
+        location.replace(s + '#' + fragment);
+      } else {
+        location.hash = fragment;
+      }
+    }
+  });
+}(this));
+
+/*global _: false*/
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * Routers map faux-URLs to actions, and fire events when routes are
+   * matched. Creating a new one sets its `routes` hash, if not set statically.
+   * @class
+   *
+   * <p>A fork of Backbone.Router, provided for your convenience.
+   * For more information, see the
+   * <a href="http://documentcloud.github.com/backbone/#Router">Backbone
+   * documentation</a>.</p>
+   * <p><strong><em>Available in the client SDK only.</em></strong></p>
+   */
+  Parse.Router = function(options) {
+    options = options || {};
+    if (options.routes) {
+      this.routes = options.routes;
+    }
+    this._bindRoutes();
+    this.initialize.apply(this, arguments);
+  };
+
+  // Cached regular expressions for matching named param parts and splatted
+  // parts of route strings.
+  var namedParam    = /:\w+/g;
+  var splatParam    = /\*\w+/g;
+  var escapeRegExp  = /[\-\[\]{}()+?.,\\\^\$\|#\s]/g;
+
+  // Set up all inheritable **Parse.Router** properties and methods.
+  _.extend(Parse.Router.prototype, Parse.Events,
+           /** @lends Parse.Router.prototype */ {
+
+    /**
+     * Initialize is an empty function by default. Override it with your own
+     * initialization logic.
+     */
+    initialize: function(){},
+
+    /**
+     * Manually bind a single named route to a callback. For example:
+     *
+     * <pre>this.route('search/:query/p:num', 'search', function(query, num) {
+     *       ...
+     *     });</pre>
+     */
+    route: function(route, name, callback) {
+      Parse.history = Parse.history || new Parse.History();
+      if (!_.isRegExp(route)) {
+        route = this._routeToRegExp(route);
+      } 
+      if (!callback) {
+        callback = this[name];
+      }
+      Parse.history.route(route, _.bind(function(fragment) {
+        var args = this._extractParameters(route, fragment);
+        if (callback) {
+          callback.apply(this, args);
+        }
+        this.trigger.apply(this, ['route:' + name].concat(args));
+        Parse.history.trigger('route', this, name, args);
+      }, this));
+      return this;
+    },
+
+    /**
+     * Whenever you reach a point in your application that you'd
+     * like to save as a URL, call navigate in order to update the
+     * URL. If you wish to also call the route function, set the 
+     * trigger option to true. To update the URL without creating
+     * an entry in the browser's history, set the replace option
+     * to true.
+     */
+    navigate: function(fragment, options) {
+      Parse.history.navigate(fragment, options);
+    },
+
+    // Bind all defined routes to `Parse.history`. We have to reverse the
+    // order of the routes here to support behavior where the most general
+    // routes can be defined at the bottom of the route map.
+    _bindRoutes: function() {
+      if (!this.routes) { 
+        return;
+      }
+      var routes = [];
+      for (var route in this.routes) {
+        if (this.routes.hasOwnProperty(route)) {
+          routes.unshift([route, this.routes[route]]);
+        }
+      }
+      for (var i = 0, l = routes.length; i < l; i++) {
+        this.route(routes[i][0], routes[i][1], this[routes[i][1]]);
+      }
+    },
+
+    // Convert a route string into a regular expression, suitable for matching
+    // against the current location hash.
+    _routeToRegExp: function(route) {
+      route = route.replace(escapeRegExp, '\\$&')
+                   .replace(namedParam, '([^\/]+)')
+                   .replace(splatParam, '(.*?)');
+      return new RegExp('^' + route + '$');
+    },
+
+    // Given a route, and a URL fragment that it matches, return the array of
+    // extracted parameters.
+    _extractParameters: function(route, fragment) {
+      return route.exec(fragment).slice(1);
+    }
+  });
+
+  /**
+   * @function
+   * @param {Object} instanceProps Instance properties for the router.
+   * @param {Object} classProps Class properies for the router.
+   * @return {Class} A new subclass of <code>Parse.Router</code>.
+   */
+  Parse.Router.extend = Parse._extend;
+}(this));
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+  var _ = Parse._;
+
+  /**
+   * @namespace Contains functions for calling and declaring
+   * <a href="/docs/cloud_code_guide#functions">cloud functions</a>.
+   * <p><strong><em>
+   *   Some functions are only available from Cloud Code.
+   * </em></strong></p>
+   */
+  Parse.Cloud = Parse.Cloud || {};
+
+  _.extend(Parse.Cloud, /** @lends Parse.Cloud */ {
+    /**
+     * Makes a call to a cloud function.
+     * @param {String} name The function name.
+     * @param {Object} data The parameters to send to the cloud function.
+     * @param {Object} options A Backbone-style options object
+     * options.success, if set, should be a function to handle a successful
+     * call to a cloud function.  options.error should be a function that
+     * handles an error running the cloud function.  Both functions are
+     * optional.  Both functions take a single argument.
+     * @return {Parse.Promise} A promise that will be resolved with the result
+     * of the function.
+     */
+    run: function(name, data, options) {
+      options = options || {};
+
+      var request = Parse._request({
+        route: "functions",
+        className: name,
+        method: 'POST',
+        useMasterKey: options.useMasterKey,
+        data: Parse._encode(data, null, true)
+      });
+
+      return request.then(function(resp) {
+        return Parse._decode(null, resp).result;
+      })._thenRunCallbacks(options);
+    }
+  });
+}(this));
+
+(function(root) {
+  root.Parse = root.Parse || {};
+  var Parse = root.Parse;
+
+  Parse.Installation = Parse.Object.extend("_Installation");
+
+  /**
+   * Contains functions to deal with Push in Parse
+   * @name Parse.Push
+   * @namespace
+   */
+  Parse.Push = Parse.Push || {};
+
+  /**
+   * Sends a push notification.
+   * @param {Object} data -  The data of the push notification.  Valid fields
+   * are:
+   *   <ol>
+   *     <li>channels - An Array of channels to push to.</li>
+   *     <li>push_time - A Date object for when to send the push.</li>
+   *     <li>expiration_time -  A Date object for when to expire
+   *         the push.</li>
+   *     <li>expiration_interval - The seconds from now to expire the push.</li>
+   *     <li>where - A Parse.Query over Parse.Installation that is used to match
+   *         a set of installations to push to.</li>
+   *     <li>data - The data to send as part of the push</li>
+   *   <ol>
+   * @param {Object} options An object that has an optional success function,
+   * that takes no arguments and will be called on a successful push, and
+   * an error function that takes a Parse.Error and will be called if the push
+   * failed.
+   * @return {Parse.Promise} A promise that is fulfilled when the push request
+   *     completes.
+   */
+  Parse.Push.send = function(data, options) {
+    options = options || {};
+
+    if (data.where) {
+      data.where = data.where.toJSON().where;
+    }
+
+    if (data.push_time) {
+      data.push_time = data.push_time.toJSON();
+    }
+
+    if (data.expiration_time) {
+      data.expiration_time = data.expiration_time.toJSON();
+    }
+
+    if (data.expiration_time && data.expiration_interval) {
+      throw "Both expiration_time and expiration_interval can't be set";
+    }
+
+    var request = Parse._request({
+      route: 'push',
+      method: 'POST',
+      data: data,
+      useMasterKey: options.useMasterKey
+    });
+    return request._thenRunCallbacks(options);
+  };
+}(this));
 
 /*
      _ _      _       _
