@@ -5,12 +5,37 @@ head
   link(rel="stylesheet" href="stylesheets/app.css")
   script(src="javascripts/vendor.js")
   script(src="javascripts/app.js")
-  script(src="javascripts/pharse.js")
+  script(src="javascripts/parse.js")
+  script(src="javascripts/jquery.countdown.min.js")
 
   script.
     require('initialize');
 
 body
+  .popup 
+    .form
+      .popup-close
+        |X
+      .name.inputs
+        label(for="name2") Ваше имя:
+        input#name2(type="text" placeholder="Валентин")
+      .numb.inputs
+        label(for="numb2") Ваш телефон:
+        input#numb2(type="text" placeholder="89001112233") 
+      .email.inputs
+        label(for="email2") Ваш Email:
+        input#email2(type="text" placeholder="yourmail@example.com")
+      .but.inputs.send2
+        input.but(type="submit" value="Заказать звонок")
+      .sec
+        |Ваши контактные данные в безопасности*
+  .popup2
+    .window
+      |Спасибо! 
+      br
+      |Наш менеджер свяжется с вами в течение 5 минут.
+      .popup-close
+        |X
   .head
     .opacity
       header
@@ -42,18 +67,12 @@ body
                 span
                   |2290 
                 |рублей.
-              .button
+              .button.popup-show
                 |ПОЛУЧИТЬ СКИДКУ
             .image
               img(src="images/marine.png")
-          .navbar
-            .inner
-              .circle.active
-              .circle
-              .circle
-              .circle
-              .circle
-  .our-advantages
+          
+  .our-advantages#our-advantages
     .container
       .title
         |ПРЕИМУЩЕСТВА ПЕРЕД КОНКУРЕНТАМИ
@@ -82,9 +101,10 @@ body
               |НАДЕЖНАЯ УПАКОВКА
             .txt 
               |Ваш товар придет в целости и сохранности!
-  .video-review
+  .video-review#video-review
     .container
-      .video 
+      .video
+        <iframe src="https://www.youtube.com/embed/buR6hkJrueM" frameborder="0" ></iframe> 
       .text
         .title
           |ПОСМОТРИТЕ ВИДЕО-ОБЗОР
@@ -106,53 +126,69 @@ body
           |Бельгии.
   .image-block
     .flex-item
-      .opacity
-      img(src="images/watch1.png")
+      a.image(href="images/1.png" rel="group1")
+        .background
+        img(src="images/watch1.png")
     .flex-item
-      .opacity
-      img(src="images/watch2.png")
+      a.image(href="images/2.png" rel="group1")
+        .background
+        img(src="images/watch2.png")
     .flex-item
-      .opacity
-      img(src="images/watch3.png")
+      a.image(href="images/3.png" rel="group1")
+        .background
+        img(src="images/watch3.png")
     .flex-item
-      .opacity
-      img(src="images/watch4.png")
+      a.image(href="images/4.png" rel="group1")
+        .background
+        img(src="images/watch4.png")
     .flex-item
-      .opacity
-      img(src="images/watch5.png")
+      a.image(href="images/5.png" rel="group1")
+        .background
+        img(src="images/watch5.png")
     .flex-item
-      .opacity
-      img(src="images/watch6.png")
+      a.image(href="images/6.png" rel="group1")
+        .background
+        img(src="images/watch6.png")
     .flex-item
-      .opacity
-      img(src="images/watch7.png")
+      a.image(href="images/7.png" rel="group1")
+        .background
+        img(src="images/watch7.png")
     .flex-item
-      .opacity
-      img(src="images/watch8.png")
+      a.image(href="images/8.png" rel="group1")
+        .background
+        img(src="images/watch8.png")
     .flex-item
-      .opacity
-      img(src="images/watch9.png")
+      a.image(href="images/9.png" rel="group1")
+        .background
+        img(src="images/watch9.png")
     .flex-item
-      .opacity
-      img(src="images/watch10.png")
+      a.image(href="images/10.png" rel="group1")
+        .background
+        img(src="images/watch10.png")
     .flex-item
-      .opacity
-      img(src="images/watch11.png")
+      a.image(href="images/11.png" rel="group1")
+        .background
+        img(src="images/watch11.png")
     .flex-item
-      .opacity
-      img(src="images/watch12.png")
+      a.image(href="images/12.png" rel="group1")
+        .background
+        img(src="images/watch12.png")
     .flex-item
-      .opacity
-      img(src="images/watch13.png")
+      a.image(href="images/13.png" rel="group1")
+        .background
+        img(src="images/watch13.png")
     .flex-item
-      .opacity
-      img(src="images/watch14.png")
+      a.image(href="images/14.png" rel="group1")
+        .background
+        img(src="images/watch14.png")
     .flex-item
-      .opacity
-      img(src="images/watch15.png")
+      a.image(href="images/15.png" rel="group1")
+        .background
+        img(src="images/watch15.png")
     .flex-item
-      .opacity
-      img(src="images/watch16.png")
+      a.image(href="images/16.png" rel="group1")
+        .background
+        img(src="images/watch16.png")
   .why
     .container
       .title
@@ -315,7 +351,7 @@ body
                   span
                     |Толщина циферблата: 
                   |14 мм   
-        form.form(method="post" name="shipForm")
+        form.form
           .price
             .txt 
               |КВАРЦЕВЫЕ - 2290р
@@ -337,15 +373,117 @@ body
           .timer
           .name.inputs
             label(for="name") Ваше имя:
-            input#name(type="text" placeholder="Валентин" name="name")
+            input#name(type="text" placeholder="Валентин")
           .numb.inputs
             label(for="numb") Ваш телефон:
-            input#numb(type="text" placeholder="89001112233" name="numb") 
+            input#numb(type="text" placeholder="89001112233") 
           .email.inputs
             label(for="email") Ваш Email:
-            input#email(type="text" placeholder="yourmail@example.com" name="email")
-          .button.inputs
-            input.but(type="submit" value="Получить скидку" name="send")
+            input#email(type="text" placeholder="yourmail@example.com")
+          .but.inputs
+            input.send.but(type="submit" value="Получить скидку")
           .sec
             |Ваши контактные данные в безопасности*
 
+.process#process
+  .container
+    .title
+      |ПРОЦЕСС РАБОТЫ С НАМИ
+    .flex-inner
+      .flex-item
+        .number
+          span
+            |1
+          .str 
+            img(src="images/str.png")
+        .txt 
+          |Вы оставляете заявку на 
+          br
+          |сайте
+      .flex-item
+          .number
+            span
+              |2
+            .str 
+              img(src="images/str.png")
+          .txt 
+            |Наш менеджер перезвонит
+            br 
+            | в течение 5 минут
+      .flex-item
+          .number
+            span
+              |3
+            .str 
+              img(src="images/str.png")
+          .txt 
+            |Мы проконсультируем Вас 
+            br
+            |и уточним детали доставки
+      .flex-item
+          .number
+            span
+              |4
+            .str 
+              img(src="images/str.png")
+          .txt 
+            |Мы быстро доставляем вашу 
+            br
+            |посылку по указанному 
+            br
+            |адресу
+      .flex-item
+          .number
+            span
+              |5
+          .txt 
+            |Вы получаете часы
+    .foot
+      span
+        |Товар оплачивается по полной предоплате*
+.reviews#reviews
+  .container
+    .slider-review   
+      .review
+        .flex-inner
+          .img 
+            img(src="images/face.png")
+          .dots
+            img(src="images/rev.png")
+          .txt
+            |Хорошие часы. Стильные. Очень недорого для этого
+            |качества. Займут достойное место в моей коллекции.
+            |Сразу же заказал из этой серии двое часов друзьям.
+          .dots-after
+            img(src="images/rev.png")
+      .review
+        .flex-inner
+          .img 
+            img(src="images/face.png")
+          .dots
+            img(src="images/rev.png")
+          .txt
+            |Хорошие часы. Стильные. Очень недорого для этого
+            |качества. Займут достойное место в моей коллекции.
+            |Сразу же заказал из этой серии двое часов друзьям.
+          .dots-after
+            img(src="images/rev.png")
+.footer
+  .container
+    .logo
+      img(src="images/logo.png")
+    ul 
+      li 
+        a(href="")
+          img(src="images/mail.png")
+      li 
+        a(href="")
+          img(src="images/skype.png")
+      li 
+        a(href="#video-review") О ЧАСАХ
+      li 
+        a(href="#process") ПРОЦЕСС ЗАКАЗА
+      li 
+        a(href="#our-advantages") ПОЧЕМУ МЫ?
+      li 
+        a(href="#reviews") ОТЗЫВЫ
