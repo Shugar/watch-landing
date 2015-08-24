@@ -116,7 +116,7 @@ $(document).ready(function() {
   header = new Headhesive('.footer', {
     offset: 500
   });
-  $(".image").fancybox();
+  $("#image").fancybox();
   $('a[href*=#]').bind('click', function(e) {
     var target;
     e.preventDefault();
