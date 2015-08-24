@@ -97,7 +97,7 @@ body
       margin-top: 50px
       @extend .row
       justify-content: space-between
-      font-family: 'dinnultra'
+      font-family: 'dinnlight'
       .flex-item
         width: 34%
         @extend .row
@@ -217,7 +217,7 @@ body
           width: 69%
           letter-spacing: 1px
           margin-top: 15px
-          font-family: 'dinnultra'
+          font-family: 'dinnlight'
 .about-watch
   background: url('../images/fon2.png') no-repeat center center
   background-size: cover
@@ -228,13 +228,13 @@ body
       @extend .row
       align-items: center
       .slider
-        width: 70%
+        width: 30%
         .slick-next, .slick-prev
           display: none !important
         .slick-dots
-          bottom: 59px
+          bottom: -30px
           width: initial
-          left: 85px
+          left: 110px
           li 
             position: relative
             min-width: 20px
@@ -260,28 +260,27 @@ body
             opacity: 1
         .flex-inner
           outline: none
-          @extend .row
-          width: 100%
-        .image
           @extend .column
-          align-items: center
-          justify-content: center
-          img 
-            max-height: 270px
-        .charact
+          .image
+            @extend .column
+            align-items: center
+            justify-content: center
+            img 
+              max-height: 270px
+      .charact
+        @extend .column
+        align-items: flex-start
+        .title
+          font-weight: bold
+        .text 
           @extend .column
           align-items: flex-start
-          .title
+          span 
             font-weight: bold
-          .text 
-            @extend .column
-            align-items: flex-start
-            span 
-              font-weight: bold
-            .yellow
-              color: $yellow
-            .string
-              margin-top: 5px
+          .yellow
+            color: $yellow
+          .string
+            margin-top: 5px
       form 
         background: rgba(0,0,0,0.4)
         padding: 15px
@@ -372,7 +371,7 @@ body
         .txt 
           margin-top: 25px
           font-size: 14px
-          font-family: 'dinnultra'
+          font-family: 'dinnlight'
     .foot
       align-self: center
       font-size: 13px
@@ -426,7 +425,7 @@ body
           width: 60%
           font-size: 20px
           text-align: left
-          font-family: 'dinnultra'
+          font-family: 'dinnlight'
         .dots-after
           align-self: flex-end
           margin-bottom: 20px

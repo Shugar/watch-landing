@@ -20,12 +20,14 @@ $(document).ready ->
 
 
   $('.slider').slick(
+    fade: true
+    speed: 1000
     autoplay: true
-    dots: true)
+    dots: true
+    cssEase: 'ease-in-out')
 
 
-  $('.slider-review').slick(
-    autoplay: true)
+  $('.slider-review').slick()
 
   
   header = new Headhesive('.footer',offset:500)
