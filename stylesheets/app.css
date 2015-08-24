@@ -1417,7 +1417,8 @@ body {
       width: 52%;
       font-family: "dinnreg"; }
       .hight-quality .container .text span {
-        color: #eeb500; }
+        color: #4a90e2;
+        font-family: "dinnbold"  }
 
 .image-block {
   padding: 50px 0px;
