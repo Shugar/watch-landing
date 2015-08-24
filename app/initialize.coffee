@@ -20,7 +20,8 @@ $(document).ready ->
 
 
   $('.slider').slick(
-    autoplay: true)
+    autoplay: true
+    dots: true)
 
 
   $('.slider-review').slick(
@@ -30,7 +31,7 @@ $(document).ready ->
   header = new Headhesive('.footer',offset:500)
 
 
-  $("#image").fancybox()
+  $(".fanc").fancybox()
 
 
   $('a[href*=#]').bind('click',  (e) ->
