@@ -108,7 +108,8 @@ $(document).ready(function() {
     return $(this).addClass('active');
   });
   $('.slider').slick({
-    autoplay: true
+    autoplay: true,
+    dots: true
   });
   $('.slider-review').slick({
     autoplay: true
@@ -116,7 +117,7 @@ $(document).ready(function() {
   header = new Headhesive('.footer', {
     offset: 500
   });
-  $("#image").fancybox();
+  $(".fanc").fancybox();
   $('a[href*=#]').bind('click', function(e) {
     var target;
     e.preventDefault();
