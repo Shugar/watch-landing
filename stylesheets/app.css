@@ -1349,7 +1349,7 @@ body {
       -webkit-justify-content: space-between;
       -ms-flex-pack: justify;
       justify-content: space-between;
-      font-family: "dinnultra"; }
+      font-family: "dinnlight"; }
       .our-advantages .container .flex-inner .flex-item {
         width: 34%;
         -webkit-box-pack: start;
@@ -1493,7 +1493,7 @@ body {
           width: 69%;
           letter-spacing: 1px;
           margin-top: 15px;
-          font-family: "dinnultra"; }
+          font-family: "dinnlight"; }
 
 .about-watch {
   background: url("../images/fon2.png") no-repeat center center;
@@ -1681,7 +1681,7 @@ body {
         .process .container .flex-inner .flex-item .txt {
           margin-top: 25px;
           font-size: 14px;
-          font-family: "dinnultra"; }
+          font-family: "dinnlight"; }
     .process .container .foot {
       -webkit-align-self: center;
       -ms-flex-item-align: center;
@@ -1747,7 +1747,7 @@ body {
           width: 60%;
           font-size: 20px;
           text-align: left;
-          font-family: "dinnultra"; }
+          font-family: "dinnlight"; }
         .reviews .container .review .flex-inner .dots-after {
           -webkit-align-self: flex-end;
           -ms-flex-item-align: end;
