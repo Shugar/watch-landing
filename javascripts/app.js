@@ -154,12 +154,11 @@ $(document).ready(function() {
     var a, b, c;
     a = $('#name2').val();
     b = $('#numb2').val();
-    c = $('#email2').val();
     Parse.Cloud.run('sendmail', {
       target: 'myulysseshop@gmail.com',
       originator: 'clock-landing@mail.ru',
-      subject: 'Заявка на получение скидки',
-      text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
+      subject: 'Заказ звонка',
+      text: "Имя: " + a + ", Номер: " + b
     }, {
       success: function(success) {
         return console.log(success);

@@ -987,7 +987,7 @@ table {
   padding-right: 30px;
   text-align: center; }
 
-.row, .head header .container, .head .main .container, .head .main .container .flex-inner, .our-advantages .container .flex-inner, .our-advantages .container .flex-inner .flex-item, .video-review .container, .image-block, .why .container .flex-inner, .about-watch .opacity .container, .about-watch .opacity .container form .timer .countdown-row, .process .container .flex-inner, .reviews .container .review .flex-inner, .footer .container, .footer .container ul {
+.row, .head header .container, .head .main .container, .head .main .container .flex-inner, .our-advantages .container .flex-inner, .our-advantages .container .flex-inner .flex-item, .video-review .container, .image-block, .why .container .flex-inner, .about-watch .opacity .container, .about-watch .opacity .container .form .timer .countdown-row, .process .container .flex-inner, .reviews .container .review .flex-inner, .footer .container, .footer .container ul {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -1003,13 +1003,13 @@ table {
   -webkit-justify-content: space-around;
   -ms-flex-pack: distribute;
   justify-content: space-around; }
-  .row.centered, .head header .centered.container, .head .main .centered.container, .head .main .container .centered.flex-inner, .our-advantages .container .centered.flex-inner, .our-advantages .container .flex-inner .centered.flex-item, .video-review .centered.container, .centered.image-block, .why .container .centered.flex-inner, .about-watch .opacity .centered.container, .about-watch .opacity .container form .timer .centered.countdown-row, .process .container .centered.flex-inner, .reviews .container .review .centered.flex-inner, .footer .centered.container, .footer .container ul.centered {
+  .row.centered, .head header .centered.container, .head .main .centered.container, .head .main .container .centered.flex-inner, .our-advantages .container .centered.flex-inner, .our-advantages .container .flex-inner .centered.flex-item, .video-review .centered.container, .centered.image-block, .why .container .centered.flex-inner, .about-watch .opacity .centered.container, .about-watch .opacity .container .form .timer .centered.countdown-row, .process .container .centered.flex-inner, .reviews .container .review .centered.flex-inner, .footer .centered.container, .footer .container ul.centered {
     -webkit-box-pack: center;
     -webkit-justify-content: center;
     -ms-flex-pack: center;
     justify-content: center; }
 
-.column, .head .main .container .flex-inner .flex-item, .our-advantages .container, .our-advantages .container .flex-inner .flex-item .text, .video-review .container .text, .hight-quality .container, .why .container, .why .container .flex-inner .flex-item, .about-watch .opacity .container .slider .flex-inner, .about-watch .opacity .container .slider .flex-inner .image, .about-watch .opacity .container .charact, .about-watch .opacity .container .charact .text, .about-watch .opacity .container form, .about-watch .opacity .container form .timer .countdown-row .countdown-section, .about-watch .opacity .container form .inputs, .process .container, .process .container .flex-inner .flex-item, .reviews .container .review, .popup .form, .popup .form .inputs {
+.column, .head .main .container .flex-inner .flex-item, .our-advantages .container, .our-advantages .container .flex-inner .flex-item .text, .video-review .container .text, .hight-quality .container, .why .container, .why .container .flex-inner .flex-item, .about-watch .opacity .container .slider .flex-inner, .about-watch .opacity .container .slider .flex-inner .image, .about-watch .opacity .container .charact, .about-watch .opacity .container .charact .text, .about-watch .opacity .container .form, .about-watch .opacity .container .form .timer .countdown-row .countdown-section, .about-watch .opacity .container .form .inputs, .process .container, .process .container .flex-inner .flex-item, .reviews .container .review, .popup .form, .popup .form .inputs {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -1017,7 +1017,7 @@ table {
   -webkit-flex-flow: column nowrap;
   -ms-flex-flow: column nowrap;
   flex-flow: column nowrap; }
-  .column.centered, .head .main .container .flex-inner .centered.flex-item, .our-advantages .centered.container, .our-advantages .container .flex-inner .flex-item .centered.text, .video-review .container .centered.text, .hight-quality .centered.container, .why .centered.container, .why .container .flex-inner .centered.flex-item, .about-watch .opacity .container .slider .centered.flex-inner, .about-watch .opacity .container .slider .flex-inner .centered.image, .about-watch .opacity .container .centered.charact, .about-watch .opacity .container .charact .centered.text, .about-watch .opacity .container form.centered, .about-watch .opacity .container form .timer .countdown-row .centered.countdown-section, .about-watch .opacity .container form .centered.inputs, .process .centered.container, .process .container .flex-inner .centered.flex-item, .reviews .container .centered.review, .popup .centered.form, .popup .form .centered.inputs {
+  .column.centered, .head .main .container .flex-inner .centered.flex-item, .our-advantages .centered.container, .our-advantages .container .flex-inner .flex-item .centered.text, .video-review .container .centered.text, .hight-quality .centered.container, .why .centered.container, .why .container .flex-inner .centered.flex-item, .about-watch .opacity .container .slider .centered.flex-inner, .about-watch .opacity .container .slider .flex-inner .centered.image, .about-watch .opacity .container .centered.charact, .about-watch .opacity .container .charact .centered.text, .about-watch .opacity .container .form.centered, .about-watch .opacity .container .form .timer .countdown-row .centered.countdown-section, .about-watch .opacity .container .form .centered.inputs, .process .centered.container, .process .container .flex-inner .centered.flex-item, .reviews .container .centered.review, .popup .centered.form, .popup .form .centered.inputs {
     -webkit-box-pack: center;
     -webkit-justify-content: center;
     -ms-flex-pack: center;
@@ -1284,6 +1284,11 @@ body {
         cursor: pointer;
         letter-spacing: 1px;
         line-height: 25px; }
+      .head header .container .phone .skp{
+        font-size: 15px;
+        line-height: 20px;
+        font-family: 'dinnlight';
+      }
   .head .main {
     margin-top: 50px; }
     .head .main .container {
@@ -1572,7 +1577,7 @@ body {
             color: #ffc500; }
           .about-watch .opacity .container .charact .text .string {
             margin-top: 5px; }
-      .about-watch .opacity .container form {
+      .about-watch .opacity .container .form {
         background: rgba(0, 0, 0, 0.4);
         padding: 15px;
         -webkit-box-flex: 1;
@@ -1580,25 +1585,25 @@ body {
         -ms-flex: 1 0 auto;
         flex: 1 0 auto;
         border-radius: 10px; }
-        .about-watch .opacity .container form .price {
+        .about-watch .opacity .container .form .price {
           padding: 10px 0;
           border: 1px solid #ffc500; }
-          .about-watch .opacity .container form .price span {
+          .about-watch .opacity .container .form .price span {
             text-decoration: line-through;
             font-size: 12px; }
-        .about-watch .opacity .container form .title {
+        .about-watch .opacity .container .form .title {
           font-size: 20px; }
-          .about-watch .opacity .container form .title span {
+          .about-watch .opacity .container .form .title span {
             font-size: 16px;
             font-family: "dinnlight"; }
-        .about-watch .opacity .container form .timer {
+        .about-watch .opacity .container .form .timer {
           -webkit-align-self: center;
           -ms-flex-item-align: center;
           align-self: center;
           border: 1px solid #ffc500;
           height: 80px;
           width: 80%; }
-          .about-watch .opacity .container form .timer .countdown-row {
+          .about-watch .opacity .container .form .timer .countdown-row {
             -webkit-justify-content: space-around;
             -ms-flex-pack: distribute;
             justify-content: space-around;
@@ -1608,11 +1613,11 @@ body {
             align-items: center;
             min-width: 100%;
             min-height: 100%; }
-            .about-watch .opacity .container form .timer .countdown-row .countdown-section {
+            .about-watch .opacity .container .form .timer .countdown-row .countdown-section {
               font-size: 15px; }
-              .about-watch .opacity .container form .timer .countdown-row .countdown-section .countdown-amount {
+              .about-watch .opacity .container .form .timer .countdown-row .countdown-section .countdown-amount {
                 font-size: 35px !important; }
-        .about-watch .opacity .container form .inputs {
+        .about-watch .opacity .container .form .inputs {
           -webkit-align-self: center;
           -ms-flex-item-align: center;
           align-self: center;
@@ -1622,19 +1627,19 @@ body {
           -webkit-align-items: flex-start;
           -ms-flex-align: start;
           align-items: flex-start; }
-          .about-watch .opacity .container form .inputs label {
+          .about-watch .opacity .container .form .inputs label {
             font-family: "dinnlight"; }
-          .about-watch .opacity .container form .inputs input {
+          .about-watch .opacity .container .form .inputs input {
             width: 100%;
             border: 1px solid white;
             background: transparent;
             height: 50px;
             color: white;
             padding-left: 10px; }
-            .about-watch .opacity .container form .inputs input[type="submit"] {
+            .about-watch .opacity .container .form .inputs input[type="submit"] {
               background: #ffc500;
               font-weight: bold; }
-        .about-watch .opacity .container form .sec {
+        .about-watch .opacity .container .form .sec {
           -webkit-align-self: center;
           -ms-flex-item-align: center;
           align-self: center;
