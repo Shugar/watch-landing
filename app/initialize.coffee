@@ -52,7 +52,7 @@ $(document).ready ->
     b = $('#numb').val()
     c = $('#email').val()
     Parse.Cloud.run 'sendmail',{
-      target: 'once182@mail.ru'
+      target: 'myulysseshop@gmail.com'
       originator: 'clock-landing@mail.ru'
       subject: 'Заявка на получение скидки'
       text: "Имя: #{a}, Номер: #{b}, Email: #{c}"},
@@ -68,7 +68,7 @@ $(document).ready ->
     b = $('#numb2').val()
     c = $('#email2').val()
     Parse.Cloud.run 'sendmail',{
-      target: 'once182@mail.ru'
+      target: 'myulysseshop@gmail.com'
       originator: 'clock-landing@mail.ru'
       subject: 'Заявка на получение скидки'
       text: "Имя: #{a}, Номер: #{b}, Email: #{c}"},
