@@ -1417,8 +1417,7 @@ body {
       width: 52%;
       font-family: "dinnreg"; }
       .hight-quality .container .text span {
-        color: #4a90e2;
-        font-family: "dinnbold"  }
+        color: #4a90e2; }
 
 .image-block {
   padding: 50px 0px;
@@ -1787,9 +1786,18 @@ body {
     .footer .container ul {
       width: 70%; }
       .footer .container ul li {
+        position: relative;
         display: inline-block; }
         .footer .container ul li:first-child a:after, .footer .container ul li:nth-child(2) a:after {
           content: none; }
+        .footer .container ul li:hover .wind {
+          display: block; }
+        .footer .container ul li .wind {
+          display: none;
+          position: absolute;
+          left: -50px;
+          top: -30px;
+          height: 30px; }
         .footer .container ul li a {
           position: relative;
           padding-bottom: 10px; }
