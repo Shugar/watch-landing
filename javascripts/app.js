@@ -138,7 +138,7 @@ $(document).ready(function() {
     Parse.Cloud.run('sendmail', {
       target: 'myulysseshop@gmail.com',
       originator: 'clock-landing@mail.ru',
-      subject: 'Заявка на получение скидки myulysse.ru',
+      subject: 'Получить скидку myulysse.ru',
       text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
     }, {
       success: function(success) {
@@ -158,7 +158,7 @@ $(document).ready(function() {
     Parse.Cloud.run('sendmail', {
       target: 'myulysseshop@gmail.com',
       originator: 'clock-landing@mail.ru',
-      subject: 'Заказ звонка myulysse.ru',
+      subject: 'Звонок myulysse.ru', 
       text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
     }, {
       success: function(success) {
