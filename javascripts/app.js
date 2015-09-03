@@ -95,13 +95,14 @@ $(document).ready(function() {
   var header;
   Parse.initialize('WD4SCqCV1MsggPivlA2FvNuwHym2lIWxNhpAmQxu', 'bgN3ACqo9x6mmfPdtaKUoSvBVw5PFSeMucjiNx8H');
   $('.popup').hide();
-  $('.popup2').hide();
   $('.popup-close').click(function() {
     $('.popup').hide();
-    return $('.popup2').hide();
   });
   $(".popup-show").click(function() {
-    return $(".popup").show();
+    return $(".popup4").show();
+  });
+  $(".popup-show2").click(function() {
+    return $(".popup3").show();
   });
   $('.navbar').find('.circle').click(function() {
     $('.circle').removeClass('active');
@@ -130,6 +131,26 @@ $(document).ready(function() {
     });
     return false;
   });
+  $('.send3').click(function() {
+    var a, b, c;
+    a = $('#name3').val();
+    b = $('#numb3').val();
+    c = $('#email3').val();
+    Parse.Cloud.run('sendmail', {
+      target: 'myulysseshop@gmail.com',
+      originator: 'clock-landing@mail.ru',
+      subject: 'Заявка myulysse.ru',
+      text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
+    }, {
+      success: function(success) {
+        return console.log(success);
+      },
+      error: function(error) {
+        return console.log(error);
+      }
+    });
+    return $('.popup2').show();
+  });
   $('.send').click(function() {
     var a, b, c;
     a = $('#name').val();
@@ -138,7 +159,7 @@ $(document).ready(function() {
     Parse.Cloud.run('sendmail', {
       target: 'myulysseshop@gmail.com',
       originator: 'clock-landing@mail.ru',
-      subject: 'Cкидка myulysse.ru',
+      subject: 'Заявка myulysse.ru',
       text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
     }, {
       success: function(success) {
