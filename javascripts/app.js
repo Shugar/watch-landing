@@ -138,7 +138,7 @@ $(document).ready(function() {
     Parse.Cloud.run('sendmail', {
       target: 'myulysseshop@gmail.com',
       originator: 'clock-landing@mail.ru',
-      subject: 'Получить скидку myulysse.ru',
+      subject: 'Cкидка myulysse.ru',
       text: "Имя: " + a + ", Номер: " + b + ", Email: " + c
     }, {
       success: function(success) {

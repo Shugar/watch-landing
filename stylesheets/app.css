@@ -1321,6 +1321,9 @@ body {
           .head .main .container .flex-inner .flex-item .txt span:last-of-type {
             color: #ffc500;
             font-size: 25px; }
+        .head .main .container .flex-inner .flex-item a{
+          color: white;
+        }
         .head .main .container .flex-inner .flex-item .button {
           border-radius: 5px;
           border: 2px solid #ffc500;
