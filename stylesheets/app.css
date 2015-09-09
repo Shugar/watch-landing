@@ -986,7 +986,9 @@ table {
   padding-left: 30px;
   padding-right: 30px;
   text-align: center; }
-
+.popup{
+  display: none;
+}
 .row, .head header .container, .head .main .container, .head .main .container .flex-inner, .our-advantages .container .flex-inner, .our-advantages .container .flex-inner .flex-item, .video-review .container, .image-block, .why .container .flex-inner, .about-watch .opacity .container, .about-watch .opacity .container .form .timer .countdown-row, .process .container .flex-inner, .reviews .container .review .flex-inner, .footer .container, .footer .container ul {
   display: -webkit-box;
   display: -webkit-flex;
